@@ -194,6 +194,10 @@ if (invoiceRecord.ValidationErrors == null || invoiceRecord.ValidationErrors.Cou
 }
 
 ```            
+## Known Issues
+* Currently the oAuth2 handles PKCE only.
+* The State value , although sent and received is not checked for validity
+* Only handles the AccountingAPI
 
 
 
