@@ -85,10 +85,11 @@ namespace XeroAuth2API
                 var task = Task.Run(() => BeginoAuth2Authentication());
                 task.Wait();
                 XeroToken = task.Result; // Set the internal copy of the Token
+                Globals.XeroToken = XeroToken;
                 return XeroToken; // Return the resulting token
             }
 
-            return null;
+            return Globals.XeroToken;
         }
         // Because we need to launch a browser and wait for authentications this needs to be a task so it can wait.
         async Task<Model.XeroOAuthToken> BeginoAuth2Authentication()
@@ -98,12 +99,12 @@ namespace XeroAuth2API
                 return null;
             }
             //construct the link that the end user will need to visit in order to authorize the app
-            Globals.returnedCode = new XeroAccessCode
+            Globals.config = new Model.XeroConfiguration
             {
-                xeroClientID = XeroClientID,
-                xeroCallbackUri = XeroCallbackUri,
-                xeroScope = XeroScope,
-                xeroState = XeroState,
+                ClientID = XeroClientID,
+                CallbackUri = XeroCallbackUri,
+                Scope = XeroScope,
+                State = XeroState,
                 codeVerifier = GenerateCodeVerifier()
             };
 
@@ -112,9 +113,9 @@ namespace XeroAuth2API
             responseListener = new LocalHttpListener();
             responseListener.Message += MessageResponse;
             responseListener.callBackUri = XeroCallbackUri;
-            responseListener.StartWebServer(Globals.returnedCode);
+            responseListener.StartWebServer(Globals.config);
             //open web browser with the link generated
-            System.Diagnostics.Process.Start(Globals.returnedCode.AuthURL);
+            System.Diagnostics.Process.Start(Globals.config.AuthURL);
 
             // Fire Event so the caller can monitor
             XeroAuth2EventArgs args = new XeroAuth2EventArgs() { MessageText = $"Login Started", XeroTokenData = null, Status = XeroEventStatus.Login };
@@ -167,9 +168,9 @@ namespace XeroAuth2API
                       {
                         new KeyValuePair<string, string>("grant_type", "authorization_code"),
                         new KeyValuePair<string, string>("client_id", XeroClientID),
-                        new KeyValuePair<string, string>("code", Globals.returnedCode.authCode),
+                        new KeyValuePair<string, string>("code", Globals.config.ReturnedAccessCode),
                         new KeyValuePair<string, string>("redirect_uri", XeroCallbackUri.AbsoluteUri),
-                        new KeyValuePair<string, string>("code_verifier", Globals.returnedCode.codeVerifier),
+                        new KeyValuePair<string, string>("code_verifier", Globals.config.codeVerifier),
                       });
 
                     var responsetask = Task.Run(() => client.PostAsync(url, formContent));
