@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
@@ -59,7 +59,7 @@ namespace XeroAuth2API
 
             var task = Task.Run(() => _authClient.InitializeoAuth2(token));
             task.Wait();
-
+            _authClient.XeroToken = task.Result; // Update the token incase it was refreshed and new
             oAuth2.XeroAuth2EventArgs args = new oAuth2.XeroAuth2EventArgs() { MessageText = "Ready", XeroTokenData = token, Status = oAuth2.XeroEventStatus.Success };
             onStatusMessageReceived(args);
             if ((AutoSelectTenant.HasValue && AutoSelectTenant.Value == true) || !AutoSelectTenant.HasValue)
