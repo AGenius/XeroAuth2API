@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 using Newtonsoft.Json;
 
 /// <summary>
-/// thanks for code found at http://www.gabescode.com/dotnet/2018/11/01/basic-HttpListener-web-service.html     
+/// thanks for code found at http://www.gabescode.com/dotnet/2018/11/01/basic-HttpListener-web-service.html 
 /// </summary>
 namespace XeroAuth2API
 {
@@ -40,11 +40,11 @@ namespace XeroAuth2API
         /// <summary>
         /// Call this to start the listener
         /// </summary>
-        public void StartWebServer(XeroAccessCode returnCode)
+        public void StartWebServer(Model.XeroConfiguration config)
         {
             if (_mainLoop != null && !_mainLoop.IsCompleted) return; //Already started
             {
-                _mainLoop = MainLoop(returnCode);
+                _mainLoop = MainLoop(config);
             }
         }
         /// <summary>
@@ -67,7 +67,7 @@ namespace XeroAuth2API
         /// <summary>
         /// The main loop to handle requests into the Listener
         /// </summary>        
-        private async System.Threading.Tasks.Task MainLoop(XeroAccessCode returnCode)
+        private async System.Threading.Tasks.Task MainLoop(Model.XeroConfiguration config)
         {
             // Prefixes = { $"http://localhost:{Port}/" } };
 
@@ -83,7 +83,7 @@ namespace XeroAuth2API
                     var context = await Listener.GetContextAsync();
                     lock (Listener)
                     {
-                        if (_keepGoing) ProcessRequest(context, returnCode);
+                        if (_keepGoing) ProcessRequest(context, config);
                     }
                 }
                 catch (Exception e)
@@ -103,7 +103,7 @@ namespace XeroAuth2API
         /// </summary>
         /// <param name="returnCode">The Object to hold the returned code</param>
         /// <param name="context">The context of the incoming request</param>
-        private void ProcessRequest(HttpListenerContext context, XeroAccessCode returnCode)
+        private void ProcessRequest(HttpListenerContext context, Model.XeroConfiguration config)
         {
             using (var response = context.Response)
             {
@@ -113,7 +113,7 @@ namespace XeroAuth2API
 
                     if (context.Request.Url.AbsolutePath == callBackUri.GetComponents(UriComponents.PathAndQuery, UriFormat.UriEscaped))
                     {
-                        handled = HandleCallbackRequest(context, returnCode, response);
+                        handled = HandleCallbackRequest(context, config, response);
                     }
 
                     if (!handled)
@@ -142,7 +142,7 @@ namespace XeroAuth2API
         /// <param name="returnCode">Object holding the returned access code</param>
         /// <param name="response"></param>
         /// <returns>true/false</returns>
-        private bool HandleCallbackRequest(HttpListenerContext context, XeroAccessCode returnCode, HttpListenerResponse response)
+        private bool HandleCallbackRequest(HttpListenerContext context, Model.XeroConfiguration config, HttpListenerResponse response)
         {
             response.ContentType = "text/html";
 
@@ -165,13 +165,13 @@ namespace XeroAuth2API
                     if (singlePair[0] == "code")
                     {
                         code = singlePair[1];
-                        returnCode.authCode = code;
+                        config.ReturnedAccessCode = code;
                     }
 
                     if (singlePair[0] == "state")
                     {
                         state = singlePair[1];
-                        returnCode.stateCode = state;
+                        config.ReturnedState = state;
                     }
                 }
             }
