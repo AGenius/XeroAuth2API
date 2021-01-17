@@ -16,6 +16,10 @@ You will need the XeroAPI/Net-Standard Nuget package installed
 
 Visit https://github.com/XeroAPI/Xero-NetStandard
 
+### Limitations
+Presently the project is being worked on so dont expect it to work perfectly.
+The API only handlesexposes parts of the Xero AccountApi but more will follow
+
 ### Create a Xero App first 
 Follow these steps to create your Xero app to allow access to your Xero tenant(s)
 
