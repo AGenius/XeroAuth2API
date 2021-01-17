@@ -99,7 +99,7 @@ var xeroContact = new Xero.NetStandard.OAuth2.Model.Accounting.Contact
     IsCustomer = true,
 
     AccountNumber = $"NEW-ACC",
-    // xeroContact.Website = "http://google.com"; // Currently the Zero API has this read only!!
+    // Website = "http://google.com"; // Currently the Zero API has this read only!!
 
     Addresses = new List<Xero.NetStandard.OAuth2.Model.Accounting.Address>()
 };
