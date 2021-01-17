@@ -42,7 +42,7 @@ XeroAuth2API.API xeroAPI = new XeroAuth2API.API(XeroClientID, XeroCallbackUri, X
 ```
 By default the API will select the first tenant in the list , if you only have 1 authorized then all is fine otherwise ensure you select it (either allow your user to choose or select it yourself
 
-```
+```c#
 // Find the Demo Company TenantID
 XeroAuth2API.Model.Tenant Tenant = xeroAPI.Tenants.Find(x => x.TenantName.ToLower() == "demo company (uk)");
 xeroAPI.TenantID = Tenant.TenantId.ToString(); // Ensure its selected
@@ -70,7 +70,8 @@ or fetch a single item.
 ```c#
 var singleAccount = xeroAPI.Account(accounts[5].AccountID.Value);
 ```
-```
+Invoices
+```c#
 var invoices = xeroAPI.Invoices();
 var singleinvcoice = xeroAPI.Invoice(invoices[5].InvoiceID.Value);
 ```
