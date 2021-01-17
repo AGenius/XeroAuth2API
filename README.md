@@ -11,15 +11,54 @@ The oAuth2 wrapper will also handle the refresh of the access tokens if required
 
 The oAuth2 process is wrapped inside a API Wrapper designed to simplify the API calls to Xero and convert all the Async calls to sync calls. there are also events to provide feedback to the calling application
 
+You will need the XeroAPI/Net-Standard Nuget package installed
+[![NuGet.org](https://img.shields.io/badge/NuGet.org-Xero.NetStandard.OAuth2-brightgreen?style=plastic&logo=appveyor)](https://www.nuget.org/packages/Xero.NetStandard.OAuth2/)
+
+Visit https://github.com/XeroAPI/Xero-NetStandard
+
+### Create a Xero App first 
+Follow these steps to create your Xero app to allow access to your Xero tenant(s)
+
+* Create a free Xero user account (if you don't have one)
+* Use this URL for beta access to oAuth2 [https://developer.xero.com/myapps](https://developer.xero.com/myapps)
+* Click "New app" link
+* Enter your App name, company url, privacy policy url, and redirect URI (this is your callback url - localhost, etc) I would suggest http://localhost:8888/callback/
+* choose PKCE
+* Agree to terms and condition and click "Create App".
+* Copy your client id and client secret and save for use later.
+* Click the "Save" button. 
+
+## Inspired By
+Code for the listener was found here
+http://www.gabescode.com/dotnet/2018/11/01/basic-HttpListener-web-service.html 
+I built something similar in the past using the TCP Listener and started to look at midifing this to do the listening but found it didnt work as I hoped. Subsequently an example provided by Xero pointed to this listener and I managed to make it work.
+
+
+## Getting Started
 Example of how to use this API Wrapper
 
 ```c#
 XeroAuth2API.API xeroAPI = new XeroAuth2API.API(XeroClientID, XeroCallbackUri, XeroScope, XeroState, savedAccessToken);
+```
+By default the API will select the first tenant in the list , if you only have 1 authorized then all is fine otherwise ensure you select it (either allow your user to choose or select it yourself
 
+```
 // Find the Demo Company TenantID
 XeroAuth2API.Model.Tenant Tenant = xeroAPI.Tenants.Find(x => x.TenantName.ToLower() == "demo company (uk)");
 xeroAPI.TenantID = Tenant.TenantId.ToString(); // Ensure its selected
 ```
+
+To get started there are a few main classes.
+
+* The LocalHttpListener class. This is a wrapper for the System.Net.HttpListener and is key to getting the code from Xero
+* oAuth2. This is the class that handles the Auth code flow and sets up the Listener. This is not directly exposed and will be used by the API class to do the work.
+* API. The main wrapper that keeps the access simple.
+
+To get started you will just need two things to make calls to the Accounting Api. These are obtained by the oAuth2 Process
+* xero-tenant-id
+* accessToken
+
+## Examples
 
 To request data from Xero its a simple as
 
