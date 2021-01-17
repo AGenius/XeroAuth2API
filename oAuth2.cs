@@ -155,11 +155,11 @@ namespace XeroAuth2API
                 OnMessageReceived(args);
             }
         }
+        /// <summary>
+        /// exchange the code for a set of tokens
+        /// </summary>
         private void ExchangeCodeForToken()
         {
-            //exchange the code for a set of tokens
-            const string url = "https://identity.xero.com/connect/token";
-
             try
             {
                 using (var client = new HttpClient())
@@ -173,7 +173,7 @@ namespace XeroAuth2API
                         new KeyValuePair<string, string>("code_verifier", Globals.config.codeVerifier),
                       });
 
-                    var responsetask = Task.Run(() => client.PostAsync(url, formContent));
+                    var responsetask = Task.Run(() => client.PostAsync(XeroURLS.XERO_TOKEN_URL, formContent));
                     responsetask.Wait();
                     var response = responsetask.Result;// await client.PostAsync(url, formContent);
 
@@ -193,16 +193,13 @@ namespace XeroAuth2API
 
                     client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", Globals.XeroToken.AccessToken);
 
-                    responsetask = Task.Run(() => client.GetAsync("https://api.xero.com/connections"));
+                    responsetask = Task.Run(() => client.GetAsync(XeroURLS.XERO_TENANTS_URL));
                     responsetask.Wait();
-                    response = responsetask.Result;// await client.PostAsync(url, formContent);
+                    response = responsetask.Result;
 
                     contenttask = Task.Run(() => response.Content.ReadAsStringAsync());
                     contenttask.Wait();
-                    content = contenttask.Result;// await response.Content.ReadAsStringAsync();
-
-                    // response = await client.GetAsync("https://api.xero.com/connections");
-                    // content = await response.Content.ReadAsStringAsync();
+                    content = contenttask.Result;                  
 
                     // Record the Available Tenants
                     Globals.XeroToken.Tenants = JsonConvert.DeserializeObject<List<Model.Tenant>>(content);
@@ -212,6 +209,30 @@ namespace XeroAuth2API
             {
                 throw;
             }
+        }
+        public void Revoke(Model.XeroOAuthToken xeroToken)
+        {
+            if (xeroToken == null)
+            {
+                throw new ArgumentNullException("xeroToken");
+            }
+
+            //var client = new HttpClient();
+
+            //var response = client.RevokeTokenAsync(new TokenRevocationRequest
+            //{
+            //    Address = "~https~://identity.xero.com/connect/revocation",
+            //    ClientId = xeroConfiguration.ClientId,
+            //    ClientSecret = xeroConfiguration.ClientSecret,
+            //    Token = xeroToken.RefreshToken
+            //});
+
+            //if (response.IsError)
+            //{
+            //    throw new Exception(response.Error);
+            //}
+
+
         }
         public Model.XeroOAuthToken RefreshToken(Model.XeroOAuthToken TokenData = null)
         {
@@ -226,7 +247,7 @@ namespace XeroAuth2API
                 OnMessageReceived(args2);
                 return null;
             }
-            const string url = "https://identity.xero.com/connect/token";
+
             var client = new HttpClient();
             var formContent = new FormUrlEncodedContent(new[]
             {
@@ -235,7 +256,7 @@ namespace XeroAuth2API
                 new KeyValuePair<string, string>("refresh_token", TokenData.RefreshToken),
             });
 
-            var responsetask = Task.Run(() => client.PostAsync(url, formContent));
+            var responsetask = Task.Run(() => client.PostAsync(XeroURLS.XERO_TOKEN_URL, formContent));
             responsetask.Wait();
             var response = responsetask.Result;
 
@@ -254,7 +275,7 @@ namespace XeroAuth2API
 
             client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", Globals.XeroToken.AccessToken);
 
-            responsetask = Task.Run(() => client.GetAsync("https://api.xero.com/connections"));
+            responsetask = Task.Run(() => client.GetAsync(XeroURLS.XERO_TENANTS_URL));
             responsetask.Wait();
             response = responsetask.Result;// await client.PostAsync(url, formContent);
 
