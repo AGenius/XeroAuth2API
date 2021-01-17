@@ -63,12 +63,16 @@ To get started you will just need two things to make calls to the Accounting Api
 To request data from Xero its a simple as
 
 ```c#
-var accounts = xeroAPI.GetAccounts(); 
+var accounts = xeroAPI.Accounts(); 
 ```
 or fetch a single item.
 
 ```c#
-var singleAccount = xeroAPI.GetAccount(accounts[5].AccountID.Value);
+var singleAccount = xeroAPI.Account(accounts[5].AccountID.Value);
+```
+```
+var invoices = xeroAPI.Invoices();
+var singleinvcoice = xeroAPI.Invoice(invoices[5].InvoiceID.Value);
 ```
 
 You can even create a record using a single call
