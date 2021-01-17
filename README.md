@@ -62,6 +62,11 @@ To get started you will just need two things to make calls to the Accounting Api
 * xero-tenant-id
 * accessToken
 
+## Features
+* All API calls that implement the need to page the results (100 per API call to Xero) are automatically dealt with so you will get ALL records that you request regardless of how many are in Xero.
+* Simplified usage. 
+* More to follow
+
 ## Examples
 
 To request data from Xero its a simple as
