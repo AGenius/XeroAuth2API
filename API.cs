@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
@@ -8,7 +8,7 @@ namespace XeroAuth2API
     public class API
     {
         oAuth2 _authClient = null;
-        Xero.NetStandard.OAuth2.Api.AccountingApi xeroAPI = new Xero.NetStandard.OAuth2.Api.AccountingApi();
+        Xero.NetStandard.OAuth2.Api.AccountingApi xeroAPI_A = new Xero.NetStandard.OAuth2.Api.AccountingApi();
         public string TenantID { get; set; } // The Tenant ID to use for API calls
         /// <summary>
         /// this will be the Access Token used for the API calls. Read Only
@@ -80,15 +80,15 @@ namespace XeroAuth2API
         }
 
         #region Accounts
-        public List<Xero.NetStandard.OAuth2.Model.Accounting.Account> GetAccounts(string filter = null, DateTime? ifModifiedSince = null, string order = null)
+        public List<Xero.NetStandard.OAuth2.Model.Accounting.Account> Accounts(string filter = null, DateTime? ifModifiedSince = null, string order = null)
         {
-            var task = Task.Run(() => xeroAPI.GetAccountsAsync(AccessToken, TenantID, ifModifiedSince, filter, order));
+            var task = Task.Run(() => xeroAPI_A.GetAccountsAsync(AccessToken, TenantID, ifModifiedSince, filter, order));
             task.Wait();
             return task.Result._Accounts;
         }
         public Xero.NetStandard.OAuth2.Model.Accounting.Account GetAccount(Guid accountID)
         {
-            var task = Task.Run(() => xeroAPI.GetAccountAsync(AccessToken, TenantID, accountID));
+            var task = Task.Run(() => xeroAPI_A.GetAccountAsync(AccessToken, TenantID, accountID));
             task.Wait();
             if (task.Result._Accounts.Count > 0)
             {
@@ -99,24 +99,17 @@ namespace XeroAuth2API
 
         #endregion
         #region Invoices
-        public List<Xero.NetStandard.OAuth2.Model.Accounting.Invoice> GetInvoices(string filter = "")
-        {
-            var task = Task.Run(() => xeroAPI.GetInvoicesAsync(AccessToken, TenantID, null, filter));
-            task.Wait();
-
-            return task.Result._Invoices;
-        }
-        public List<Xero.NetStandard.OAuth2.Model.Accounting.Invoice> GetInvoices(DateTime? ifModifiedSince = null, string where = null, string order = null, List<Guid> iDs = null, List<string> invoiceNumbers = null,
+        public List<Xero.NetStandard.OAuth2.Model.Accounting.Invoice> Invoices(string filter = null, DateTime? ifModifiedSince = null, string order = null, List<Guid> iDs = null, List<string> invoiceNumbers = null,
             List<Guid> contactIDs = null, List<string> statuses = null, int? page = null, bool? includeArchived = null, bool? createdByMyApp = null, int? unitdp = null)
         {
-            var task = Task.Run(() => xeroAPI.GetInvoicesAsync(AccessToken, TenantID, ifModifiedSince, where, order, iDs, invoiceNumbers, contactIDs, statuses, page, includeArchived, createdByMyApp, unitdp));
+            var task = Task.Run(() => xeroAPI_A.GetInvoicesAsync(AccessToken, TenantID, ifModifiedSince, filter, order, iDs, invoiceNumbers, contactIDs, statuses, page, includeArchived, createdByMyApp, unitdp));
             task.Wait();
 
             return task.Result._Invoices;
         }
-        public Xero.NetStandard.OAuth2.Model.Accounting.Invoice GetInvoice(Guid invoiceID)
+        public Xero.NetStandard.OAuth2.Model.Accounting.Invoice Invoice(Guid invoiceID)
         {
-            var task = Task.Run(() => xeroAPI.GetInvoiceAsync(AccessToken, TenantID, invoiceID));
+            var task = Task.Run(() => xeroAPI_A.GetInvoiceAsync(AccessToken, TenantID, invoiceID));
             task.Wait();
             if (task.Result._Invoices.Count > 0)
             {
@@ -137,7 +130,7 @@ namespace XeroAuth2API
             var invoices = new Xero.NetStandard.OAuth2.Model.Accounting.Invoices();
             invoices._Invoices = invoiceList;
 
-            var task = Task.Run(() => xeroAPI.CreateInvoicesAsync(AccessToken, TenantID, invoices));
+            var task = Task.Run(() => xeroAPI_A.CreateInvoicesAsync(AccessToken, TenantID, invoices));
             task.Wait();
             if (task.Result._Invoices.Count > 0)
             {
@@ -145,12 +138,12 @@ namespace XeroAuth2API
             }
             return null;
         }
-        public List<Xero.NetStandard.OAuth2.Model.Accounting.Invoice> CreateInvoices(List<Xero.NetStandard.OAuth2.Model.Accounting.Invoice> invoices)
+        public List<Xero.NetStandard.OAuth2.Model.Accounting.Invoice> CreateInvoice(List<Xero.NetStandard.OAuth2.Model.Accounting.Invoice> invoices)
         {
             var invoicesList = new Xero.NetStandard.OAuth2.Model.Accounting.Invoices();
             invoicesList._Invoices = invoices;
 
-            var task = Task.Run(() => xeroAPI.CreateInvoicesAsync(AccessToken, TenantID, invoicesList));
+            var task = Task.Run(() => xeroAPI_A.CreateInvoicesAsync(AccessToken, TenantID, invoicesList));
             task.Wait();
             if (task.Result._Invoices.Count > 0)
             {
@@ -163,7 +156,7 @@ namespace XeroAuth2API
         #region BrandingThemes
         public List<Xero.NetStandard.OAuth2.Model.Accounting.BrandingTheme> GetBrandingThemes()
         {
-            var task = Task.Run(() => xeroAPI.GetBrandingThemesAsync(AccessToken, TenantID));
+            var task = Task.Run(() => xeroAPI_A.GetBrandingThemesAsync(AccessToken, TenantID));
             task.Wait();
             if (task.Result._BrandingThemes.Count > 0)
             {
@@ -173,7 +166,7 @@ namespace XeroAuth2API
         }
         public Xero.NetStandard.OAuth2.Model.Accounting.BrandingTheme GetBrandingTheme(Guid brandingThemeID)
         {
-            var task = Task.Run(() => xeroAPI.GetBrandingThemeAsync(AccessToken, TenantID, brandingThemeID));
+            var task = Task.Run(() => xeroAPI_A.GetBrandingThemeAsync(AccessToken, TenantID, brandingThemeID));
             task.Wait();
             if (task.Result._BrandingThemes.Count > 0)
             {
@@ -185,7 +178,7 @@ namespace XeroAuth2API
         #region Contacts
         public List<Xero.NetStandard.OAuth2.Model.Accounting.Contact> GetContacts()
         {
-            var task = Task.Run(() => xeroAPI.GetContactsAsync(AccessToken, TenantID));
+            var task = Task.Run(() => xeroAPI_A.GetContactsAsync(AccessToken, TenantID));
             task.Wait();
             if (task.Result._Contacts.Count > 0)
             {
@@ -195,7 +188,7 @@ namespace XeroAuth2API
         }
         public Xero.NetStandard.OAuth2.Model.Accounting.Contact GetContact(Guid contactID)
         {
-            var task = Task.Run(() => xeroAPI.GetContactAsync(AccessToken, TenantID, contactID));
+            var task = Task.Run(() => xeroAPI_A.GetContactAsync(AccessToken, TenantID, contactID));
             task.Wait();
             if (task.Result._Contacts.Count > 0)
             {
@@ -211,7 +204,7 @@ namespace XeroAuth2API
             var contacts = new Xero.NetStandard.OAuth2.Model.Accounting.Contacts();
             contacts._Contacts = contactsList;
 
-            var task = Task.Run(() => xeroAPI.CreateContactsAsync(AccessToken, TenantID, contacts));
+            var task = Task.Run(() => xeroAPI_A.CreateContactsAsync(AccessToken, TenantID, contacts));
             task.Wait();
             if (task.Result._Contacts.Count > 0)
             {
@@ -224,7 +217,7 @@ namespace XeroAuth2API
             var contactsList = new Xero.NetStandard.OAuth2.Model.Accounting.Contacts();
             contactsList._Contacts = contact;
 
-            var task = Task.Run(() => xeroAPI.CreateContactsAsync(AccessToken, TenantID, contactsList));
+            var task = Task.Run(() => xeroAPI_A.CreateContactsAsync(AccessToken, TenantID, contactsList));
             task.Wait();
             if (task.Result._Contacts.Count > 0)
             {
