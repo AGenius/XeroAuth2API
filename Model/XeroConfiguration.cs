@@ -33,9 +33,8 @@ namespace XeroAuth2API.Model
                             .TrimEnd('=')
                             .Replace('+', '-')
                             .Replace('/', '_');
-                    }
-                    string baseURL = "https://login.xero.com/identity/connect/authorize?";
-                    string url = $"{baseURL}response_type=code&client_id={ClientID}&redirect_uri={CallbackUri.AbsoluteUri}&scope={Scope}&code_challenge={codeChallenge}&code_challenge_method=S256";
+                    }                    
+                    string url = $"{XeroURLS.XERO_AUTH_URL}response_type=code&client_id={ClientID}&redirect_uri={CallbackUri.AbsoluteUri}&scope={Scope}&code_challenge={codeChallenge}&code_challenge_method=S256";
                     if (!string.IsNullOrEmpty(State))
                     {
                         return $"{url}&state={State}";
