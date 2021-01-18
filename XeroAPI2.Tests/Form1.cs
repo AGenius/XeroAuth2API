@@ -12,10 +12,8 @@ using System.Windows.Forms;
 namespace XeroAPI2Tests
 {
     public partial class Form1 : Form
-    {
-
-        //string XeroClientID = "3CEFB1140F7644C79061F8ECC17B2797"; //95D14A0CC327455D889526A7D60E1517
-        string XeroClientID = "95D14A0CC327455D889526A7D60E1517";
+    {       
+        string XeroClientID = "Client ID";
         Uri XeroCallbackUri = new Uri("http://localhost:8888/callback");
         string XeroScope = "openid profile email files accounting.transactions accounting.reports.read accounting.journals.read accounting.settings.read accounting.contacts offline_access";
         string XeroState = "123456";
