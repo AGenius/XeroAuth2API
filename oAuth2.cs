@@ -210,13 +210,19 @@ namespace XeroAuth2API
                 throw;
             }
         }
-        public void Revoke(Model.XeroOAuthToken xeroToken)
+
+        /// <summary>
+        /// REvoke the Access Token and disconnect the tenants from the user
+        /// </summary>
+        /// <param name="xeroToken"></param>
+        public void RevokeToken(Model.XeroOAuthToken xeroToken)
         {
             if (xeroToken == null)
             {
                 throw new ArgumentNullException("xeroToken");
             }
 
+            //TODO Implement Revoke (when found out how!
             //var client = new HttpClient();
 
             //var response = client.RevokeTokenAsync(new TokenRevocationRequest
