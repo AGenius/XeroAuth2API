@@ -2,6 +2,7 @@
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.IO;
 using System.Net.Http;
 using System.Net.Http.Headers;
@@ -12,43 +13,19 @@ namespace XeroAuth2API
 {
     public class oAuth2
     {
-        #region Event
-        public enum XeroEventStatus
-        {
-            Login,
-            Success,
-            Refreshed,
-            Failed,
-            Timeout,
-            Log,
-        }
-        public class XeroAuth2EventArgs : EventArgs
-        {
-            public string MessageText { get; set; }
-            public XeroEventStatus Status { get; set; }
-            public Model.XeroOAuthToken XeroTokenData { get; set; }
-        }
-        public virtual void OnMessageReceived(XeroAuth2EventArgs e)
-        {
-            EventHandler<XeroAuth2EventArgs> handler = StatusUpdate;
-            if (handler != null)
-            {
-                handler(this, e);
-            }
-        }
-
-        public event EventHandler<XeroAuth2EventArgs> StatusUpdate;
-
-        #endregion
-
-        public string XeroClientID { get; set; }
-        public Uri XeroCallbackUri { get; set; }
-        public string XeroScope { get; set; }
-        public string XeroState { get; set; }
+        public Model.XeroConfiguration XeroConfig { get; set; }// Hold the First leg of the oAuth2 process
+        public Model.XeroOAuthToken XeroToken { get; set; } // Hold the Final Access and Refresh tokens
         public int? Timeout { get; set; }
-        public Model.XeroOAuthToken XeroToken { get; set; }
 
         LocalHttpListener responseListener = null;
+        protected internal API ParentAPI { get; set; }
+        void onStatusUpdates(string Message, XeroEventStatus status)
+        {
+            if (this.ParentAPI != null)
+            {
+                ParentAPI.onStatusUpdates(Message, status);
+            }
+        }
 
         public oAuth2()
         {
@@ -69,7 +46,7 @@ namespace XeroAuth2API
         {
             if (TokenData != null)
             {
-                Globals.XeroToken = TokenData;
+                XeroToken = TokenData;
             }
             Timeout = timeout;
 
@@ -85,41 +62,38 @@ namespace XeroAuth2API
                 var task = Task.Run(() => BeginoAuth2Authentication());
                 task.Wait();
                 XeroToken = task.Result; // Set the internal copy of the Token
-                Globals.XeroToken = XeroToken;
+
                 return XeroToken; // Return the resulting token
             }
 
-            return Globals.XeroToken;
+            onStatusUpdates("Token OK", XeroEventStatus.Success);
+            return XeroToken;
         }
         // Because we need to launch a browser and wait for authentications this needs to be a task so it can wait.
         async Task<Model.XeroOAuthToken> BeginoAuth2Authentication()
         {
-            if (string.IsNullOrEmpty(XeroClientID))
+            if (string.IsNullOrEmpty(XeroConfig.ClientID))
             {
                 return null;
             }
-            //construct the link that the end user will need to visit in order to authorize the app
-            Globals.config = new Model.XeroConfiguration
-            {
-                ClientID = XeroClientID,
-                CallbackUri = XeroCallbackUri,
-                Scope = XeroScope,
-                State = XeroState,
-                codeVerifier = GenerateCodeVerifier()
-            };
+            // Raise event to the parent caller (your app)
+            onStatusUpdates("Begin Authentication", XeroEventStatus.Success);
 
-            Globals.XeroToken = new Model.XeroOAuthToken(); // Set an empty token ready
+            XeroConfig.ReturnedAccessCode = null;// Ensure the Return code cleared as we are authenticating and this propery will be monitored for the completion
+            XeroToken = new Model.XeroOAuthToken(); // Set an empty token ready
             //start webserver to listen for the callback
             responseListener = new LocalHttpListener();
             responseListener.Message += MessageResponse;
-            responseListener.callBackUri = XeroCallbackUri;
-            responseListener.StartWebServer(Globals.config);
+            responseListener.callBackUri = XeroConfig.CallbackUri;
+            responseListener.config = XeroConfig;
+            responseListener.StartWebServer();
+            XeroToken.AccessToken = null; // Ensure the Access Token is cleared as we are authenticating  
+
             //open web browser with the link generated
-            System.Diagnostics.Process.Start(Globals.config.AuthURL);
+            System.Diagnostics.Process.Start(XeroConfig.AuthURL);
 
             // Fire Event so the caller can monitor
-            XeroAuth2EventArgs args = new XeroAuth2EventArgs() { MessageText = $"Login Started", XeroTokenData = null, Status = XeroEventStatus.Login };
-            OnMessageReceived(args);
+            onStatusUpdates("Login URL Opened", XeroEventStatus.Log);
 
             // Basically wait for 60 Seconds (should be long enough)
             int counter = 0;
@@ -127,33 +101,32 @@ namespace XeroAuth2API
             {
                 await Task.Delay(1000); // Wait 1 second - gives time for response back to listener
                 counter++;
-            } while (Globals.XeroToken.Tenants == null && counter < Timeout);
+            } while (responseListener.config.ReturnedAccessCode == null && counter < Timeout);
 
             if (counter >= Timeout)
             {
-                args = new XeroAuth2EventArgs() { MessageText = $"Timed Out Waiting for Authentication", XeroTokenData = Globals.XeroToken, Status = XeroEventStatus.Timeout };
-                OnMessageReceived(args);
+                // Raise event to the parent caller (your app)
+                onStatusUpdates("Timed Out Waiting for Authentication", XeroEventStatus.Timeout);
             }
             else
             {
-                args = new XeroAuth2EventArgs() { MessageText = $"Success", XeroTokenData = Globals.XeroToken, Status = XeroEventStatus.Success };
-                OnMessageReceived(args);
-            }
+                // Raise event to the parent caller (your app)
+                onStatusUpdates("Success", XeroEventStatus.Success);
 
-            return Globals.XeroToken;
-        }
-        private void MessageResponse(object sender, LocalHttpListener.LocalHttpListenerEventArgs e)
-        {
-            // Get The Access token data once the Auth process has finished
-            if (e.MessageText == "CODE")
-            {
+                XeroConfig = responseListener.config;// update the config with the retrieved access code data
                 ExchangeCodeForToken();
 
                 responseListener.StopWebServer();
-                // Raise event to the parent caller (your app)
-                XeroAuth2EventArgs args = new XeroAuth2EventArgs() { MessageText = $"Success", XeroTokenData = Globals.XeroToken, Status = XeroEventStatus.Success };
-                OnMessageReceived(args);
             }
+            // Raise event to the parent caller (your app)
+            onStatusUpdates("Authentication Completed", XeroEventStatus.Success);
+
+            return XeroToken;
+        }
+        private void MessageResponse(object sender, LocalHttpListener.LocalHttpListenerEventArgs e)
+        {
+            // Raise event to the parent caller (your app)
+            onStatusUpdates(e.MessageText, XeroEventStatus.Success);
         }
         /// <summary>
         /// exchange the code for a set of tokens
@@ -162,15 +135,18 @@ namespace XeroAuth2API
         {
             try
             {
+                // Raise event to the parent caller (your app)
+                onStatusUpdates("Begin Code Exchange", XeroEventStatus.Success);
+
                 using (var client = new HttpClient())
                 {
                     var formContent = new FormUrlEncodedContent(new[]
                       {
                         new KeyValuePair<string, string>("grant_type", "authorization_code"),
-                        new KeyValuePair<string, string>("client_id", XeroClientID),
-                        new KeyValuePair<string, string>("code", Globals.config.ReturnedAccessCode),
-                        new KeyValuePair<string, string>("redirect_uri", XeroCallbackUri.AbsoluteUri),
-                        new KeyValuePair<string, string>("code_verifier", Globals.config.codeVerifier),
+                        new KeyValuePair<string, string>("client_id", XeroConfig.ClientID),
+                        new KeyValuePair<string, string>("code", XeroConfig.ReturnedAccessCode),
+                        new KeyValuePair<string, string>("redirect_uri", XeroConfig.CallbackUri.AbsoluteUri),
+                        new KeyValuePair<string, string>("code_verifier", XeroConfig.codeVerifier),
                       });
 
                     var responsetask = Task.Run(() => client.PostAsync(XeroURLS.XERO_TOKEN_URL, formContent));
@@ -180,18 +156,16 @@ namespace XeroAuth2API
                     var contenttask = Task.Run(() => response.Content.ReadAsStringAsync());
                     contenttask.Wait();
                     var content = contenttask.Result;// await response.Content.ReadAsStringAsync();
-
-
                     var tokens = JObject.Parse(content);
 
                     // Record the token data
-                    Globals.XeroToken.Tenants = null;
-                    Globals.XeroToken.IdToken = tokens["id_token"]?.ToString();
-                    Globals.XeroToken.AccessToken = tokens["access_token"]?.ToString();
-                    Globals.XeroToken.ExpiresAtUtc = DateTime.Now.AddSeconds(int.Parse(tokens["expires_in"]?.ToString()));
-                    Globals.XeroToken.RefreshToken = tokens["refresh_token"]?.ToString();
+                    XeroToken.Tenants = null;
+                    XeroToken.IdToken = tokens["id_token"]?.ToString();
+                    XeroToken.AccessToken = tokens["access_token"]?.ToString();
+                    XeroToken.ExpiresAtUtc = DateTime.Now.AddSeconds(int.Parse(tokens["expires_in"]?.ToString()));
+                    XeroToken.RefreshToken = tokens["refresh_token"]?.ToString();
 
-                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", Globals.XeroToken.AccessToken);
+                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", XeroToken.AccessToken);
 
                     responsetask = Task.Run(() => client.GetAsync(XeroURLS.XERO_TENANTS_URL));
                     responsetask.Wait();
@@ -199,15 +173,20 @@ namespace XeroAuth2API
 
                     contenttask = Task.Run(() => response.Content.ReadAsStringAsync());
                     contenttask.Wait();
-                    content = contenttask.Result;                  
+                    content = contenttask.Result;
 
                     // Record the Available Tenants
-                    Globals.XeroToken.Tenants = JsonConvert.DeserializeObject<List<Model.Tenant>>(content);
+                    XeroToken.Tenants = JsonConvert.DeserializeObject<List<Model.Tenant>>(content);
+
+                    // Raise event to the parent caller (your app) 
+                    onStatusUpdates("Code Exchange Completed", XeroEventStatus.Success);
                 }
             }
             catch (Exception ex)
             {
-                throw;
+                // Raise event to the parent caller (your app)
+                onStatusUpdates("Begin Code Failed", XeroEventStatus.Failed);
+                throw new InvalidDataException("Code Exchange Failed");
             }
         }
 
@@ -215,11 +194,11 @@ namespace XeroAuth2API
         /// REvoke the Access Token and disconnect the tenants from the user
         /// </summary>
         /// <param name="xeroToken"></param>
-        public void RevokeToken(Model.XeroOAuthToken xeroToken)
+        public void RevokeToken(Model.XeroOAuthToken XeroToken)
         {
-            if (xeroToken == null)
+            if (XeroToken == null)
             {
-                throw new ArgumentNullException("xeroToken");
+                throw new ArgumentNullException("XeroToken");
             }
 
             //TODO Implement Revoke (when found out how!
@@ -245,12 +224,13 @@ namespace XeroAuth2API
             if (TokenData == null)
             {
                 // Use passed in token object
-                TokenData = Globals.XeroToken;
+                TokenData = XeroToken;
             }
+            onStatusUpdates("Begin Token Refresh", XeroEventStatus.Success);
+
             if (TokenData == null)
             {
-                XeroAuth2EventArgs args2 = new XeroAuth2EventArgs() { MessageText = $"Failed", XeroTokenData = null, Status = XeroEventStatus.Failed };
-                OnMessageReceived(args2);
+                onStatusUpdates("Failed - Missing Token Data", XeroEventStatus.Failed);
                 return null;
             }
 
@@ -258,7 +238,7 @@ namespace XeroAuth2API
             var formContent = new FormUrlEncodedContent(new[]
             {
                 new KeyValuePair<string, string>("grant_type", "refresh_token"),
-                new KeyValuePair<string, string>("client_id", XeroClientID),
+                new KeyValuePair<string, string>("client_id", XeroConfig.ClientID),
                 new KeyValuePair<string, string>("refresh_token", TokenData.RefreshToken),
             });
 
@@ -273,13 +253,13 @@ namespace XeroAuth2API
             var tokens = JObject.Parse(content);
 
             // Store the data in the local copy now
-            Globals.XeroToken = new Model.XeroOAuthToken();
+            XeroToken = new Model.XeroOAuthToken();
 
-            Globals.XeroToken.AccessToken = tokens["access_token"]?.ToString();
-            Globals.XeroToken.ExpiresAtUtc = DateTime.Now.AddSeconds(int.Parse(tokens["expires_in"]?.ToString()));
-            Globals.XeroToken.RefreshToken = tokens["refresh_token"]?.ToString();
+            XeroToken.AccessToken = tokens["access_token"]?.ToString();
+            XeroToken.ExpiresAtUtc = DateTime.Now.AddSeconds(int.Parse(tokens["expires_in"]?.ToString()));
+            XeroToken.RefreshToken = tokens["refresh_token"]?.ToString();
 
-            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", Globals.XeroToken.AccessToken);
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", XeroToken.AccessToken);
 
             responsetask = Task.Run(() => client.GetAsync(XeroURLS.XERO_TENANTS_URL));
             responsetask.Wait();
@@ -289,12 +269,11 @@ namespace XeroAuth2API
             contenttask.Wait();
             content = contenttask.Result;// await response.Content.ReadAsStringAsync();
 
-            Globals.XeroToken.Tenants = JsonConvert.DeserializeObject<List<Model.Tenant>>(content);
+            XeroToken.Tenants = JsonConvert.DeserializeObject<List<Model.Tenant>>(content);
 
-            XeroAuth2EventArgs args = new XeroAuth2EventArgs() { MessageText = $"Success", XeroTokenData = Globals.XeroToken, Status = XeroEventStatus.Refreshed };
-            OnMessageReceived(args);
+            onStatusUpdates("Token Refresh Success", XeroEventStatus.Refreshed);
 
-            return Globals.XeroToken;
+            return XeroToken;
 
         }
 
@@ -312,19 +291,5 @@ namespace XeroAuth2API
             return Newtonsoft.Json.JsonConvert.DeserializeObject<TENTITY>(serializedString);
         }
         #endregion
-
-        private string GenerateCodeVerifier()
-        {
-            //Generate a random string for our code verifier
-            var rng = RandomNumberGenerator.Create();
-            var bytes = new byte[32];
-            rng.GetBytes(bytes);
-
-            var codeVerifier = Convert.ToBase64String(bytes)
-                .TrimEnd('=')
-                .Replace('+', '-')
-                .Replace('/', '_');
-            return codeVerifier;
-        }
     }
 }
