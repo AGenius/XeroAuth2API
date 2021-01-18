@@ -12,8 +12,10 @@ using System.Windows.Forms;
 namespace XeroAPI2Tests
 {
     public partial class Form1 : Form
-    {     
-        string XeroClientID = "Client ID";
+    {
+
+        //string XeroClientID = "3CEFB1140F7644C79061F8ECC17B2797"; //95D14A0CC327455D889526A7D60E1517
+        string XeroClientID = "95D14A0CC327455D889526A7D60E1517";
         Uri XeroCallbackUri = new Uri("http://localhost:8888/callback");
         string XeroScope = "openid profile email files accounting.transactions accounting.reports.read accounting.journals.read accounting.settings.read accounting.contacts offline_access";
         string XeroState = "123456";
@@ -42,7 +44,11 @@ namespace XeroAPI2Tests
             var singleinvoice = xeroAPI.Invoice(invoices[5].InvoiceID.Value);
 
             var accounts = xeroAPI.Accounts(); // Return List<Xero.NetStandard.OAuth2.Model.Accounting.Account>
-            var single = xeroAPI.GetAccount(accounts[5].AccountID.Value);// return Xero.NetStandard.OAuth2.Model.Accounting.Account
+            var single = xeroAPI.Account(accounts[5].AccountID.Value);// return Xero.NetStandard.OAuth2.Model.Accounting.Account
+
+            var quotes = xeroAPI.Quotes();
+
+            int h=0;
 
         }
         private void StatusUpdate(object sender, XeroAuth2API.oAuth2.XeroAuth2EventArgs e)
