@@ -19,6 +19,7 @@ namespace XeroAuth2API
         private bool _keepGoing = true;//A flag to specify when we need to stop
 
         private System.Threading.Tasks.Task _mainLoop;//Keep the task in a variable to keep it alive
+        public Model.XeroConfiguration config { get; set; }// Hold the configuration object 
 
         #region Event
         public class LocalHttpListenerEventArgs : EventArgs
@@ -40,11 +41,11 @@ namespace XeroAuth2API
         /// <summary>
         /// Call this to start the listener
         /// </summary>
-        public void StartWebServer(Model.XeroConfiguration config)
+        public void StartWebServer()
         {
             if (_mainLoop != null && !_mainLoop.IsCompleted) return; //Already started
             {
-                _mainLoop = MainLoop(config);
+                _mainLoop = MainLoop();
             }
         }
         /// <summary>
@@ -67,7 +68,7 @@ namespace XeroAuth2API
         /// <summary>
         /// The main loop to handle requests into the Listener
         /// </summary>        
-        private async System.Threading.Tasks.Task MainLoop(Model.XeroConfiguration config)
+        private async System.Threading.Tasks.Task MainLoop()
         {
             // Prefixes = { $"http://localhost:{Port}/" } };
 
@@ -83,7 +84,7 @@ namespace XeroAuth2API
                     var context = await Listener.GetContextAsync();
                     lock (Listener)
                     {
-                        if (_keepGoing) ProcessRequest(context, config);
+                        if (_keepGoing) ProcessRequest(context);
                     }
                 }
                 catch (Exception e)
@@ -103,7 +104,7 @@ namespace XeroAuth2API
         /// </summary>
         /// <param name="returnCode">The Object to hold the returned code</param>
         /// <param name="context">The context of the incoming request</param>
-        private void ProcessRequest(HttpListenerContext context, Model.XeroConfiguration config)
+        private void ProcessRequest(HttpListenerContext context)
         {
             using (var response = context.Response)
             {
@@ -113,7 +114,7 @@ namespace XeroAuth2API
 
                     if (context.Request.Url.AbsolutePath == callBackUri.GetComponents(UriComponents.PathAndQuery, UriFormat.UriEscaped))
                     {
-                        handled = HandleCallbackRequest(context, config, response);
+                        handled = HandleCallbackRequest(context, response);
                     }
 
                     if (!handled)
@@ -142,7 +143,7 @@ namespace XeroAuth2API
         /// <param name="returnCode">Object holding the returned access code</param>
         /// <param name="response"></param>
         /// <returns>true/false</returns>
-        private bool HandleCallbackRequest(HttpListenerContext context, Model.XeroConfiguration config, HttpListenerResponse response)
+        private bool HandleCallbackRequest(HttpListenerContext context, HttpListenerResponse response)
         {
             response.ContentType = "text/html";
 
@@ -180,7 +181,7 @@ namespace XeroAuth2API
             response.ContentLength64 = buffer.Length;
             response.OutputStream.Write(buffer, 0, buffer.Length);
             // Raise the event so the oAuth2 class can process the receipt of the 
-            LocalHttpListenerEventArgs args = new LocalHttpListenerEventArgs() { MessageText = $"CODE" };
+            LocalHttpListenerEventArgs args = new LocalHttpListenerEventArgs() { MessageText = $"Code Received" };
             OnMessageReceived(args);
 
             return true;
