@@ -308,7 +308,7 @@ namespace XeroAuth2API
         #region Bank Transactions 
         public List<Xero.NetStandard.OAuth2.Model.Accounting.BankTransaction> BankTransactions(string filter = null, string order = null, int? onlypage = null, DateTime? ModifiedSince = null, int? unitdp = null)
         {
-            int page = 1;
+            int? page = 1;
             if (onlypage.HasValue)
             {
                 page = onlypage.Value;
@@ -656,7 +656,7 @@ namespace XeroAuth2API
         /// <returns>List of Contacts</returns>
         public List<Xero.NetStandard.OAuth2.Model.Accounting.Contact> Contacts(string filter = null, string order = null, int? onlypage = null, DateTime? ModifiedSince = null, List<Guid> iDs = null, bool? includeArchived = null)
         {
-            int page = 1;
+            int? page = 1;
             if (onlypage.HasValue)
             {
                 page = onlypage.Value;
@@ -1042,7 +1042,7 @@ namespace XeroAuth2API
         /// <returns>List of Credit Note Records</returns>
         public List<Xero.NetStandard.OAuth2.Model.Accounting.CreditNote> CreditNotes(string filter = null, string order = null, int? onlypage = null, DateTime? ModifiedSince = null, int? unitdp = null)
         {
-            int page = 1;
+            int? page = 1;
             if (onlypage.HasValue)
             {
                 page = onlypage.Value;
@@ -1701,7 +1701,7 @@ namespace XeroAuth2API
         /// <returns>List of Quotes</returns>
         public List<Xero.NetStandard.OAuth2.Model.Accounting.Quote> Quotes(string order = null, int? onlypage = null, DateTime? ModifiedSince = null, DateTime? dateFrom = null, DateTime? dateTo = null, DateTime? expiryDateFrom = null, DateTime? expiryDateTo = null, Guid? contactID = null, string status = null, string quoteNumber = null)
         {
-            int page = 1;
+            int? page = 1;
             if (onlypage.HasValue)
             {
                 page = onlypage.Value;
@@ -2084,7 +2084,7 @@ namespace XeroAuth2API
         /// <returns>List of Purchase Orders</returns>
         public List<Xero.NetStandard.OAuth2.Model.Accounting.PurchaseOrder> PurchaseOrders(int? onlypage = null, string status = null, DateTime? ModifiedSince = null, string dateFrom = null, string dateTo = null, string order = null)
         {
-            int page = 1;
+            int? page = 1;
             if (onlypage.HasValue)
             {
                 page = onlypage.Value;
@@ -2162,7 +2162,7 @@ namespace XeroAuth2API
         public List<Xero.NetStandard.OAuth2.Model.Asset.Asset> Assets(Xero.NetStandard.OAuth2.Model.Asset.AssetStatusQueryParam status, int? onlypage = null,
             string orderBy = null, string sortDirection = null, string filterBy = null)
         {
-            int page = 1;
+            int? page = 1;
             if (onlypage.HasValue)
             {
                 page = onlypage.Value;
