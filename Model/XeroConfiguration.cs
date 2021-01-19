@@ -238,6 +238,7 @@ namespace XeroAuth2API.Model
         }// The Tenant ID to use for API calls
         public Tenant SelectedTenant { get; set; }// The Tenant  
         public bool StoreReceivedScope { get; set; }
+        public bool? AutoSelectTenant { get; set; }
 
     }
 }
