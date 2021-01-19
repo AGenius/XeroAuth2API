@@ -56,7 +56,7 @@ namespace XeroAuth2API
                 XeroConfig.SelectedTenant = value;
             }
         }
-        public bool? AutoSelectTenant { get; set; }
+
 
         #region Event
 
@@ -82,7 +82,10 @@ namespace XeroAuth2API
         {
             _authClient = new oAuth2();
             _authClient.ParentAPI = this;
-            AutoSelectTenant = true;
+            if (XeroConfig.AutoSelectTenant == null)
+            {
+                XeroConfig.AutoSelectTenant = true;
+            }
         }
         public API(Model.XeroConfiguration config = null)
         {
@@ -94,7 +97,10 @@ namespace XeroAuth2API
             {
                 XeroConfig = config;
             }
-
+            if (XeroConfig.AutoSelectTenant == null)
+            {
+                XeroConfig.AutoSelectTenant = true;
+            }
             if (XeroConfig.codeVerifier == null)
             {
                 XeroConfig.codeVerifier = GenerateCodeVerifier();
@@ -102,7 +108,6 @@ namespace XeroAuth2API
             _authClient = new oAuth2();
             _authClient.ParentAPI = this;
             _authClient.XeroConfig = XeroConfig;
-
         }
 
         public void InitializeAPI()
@@ -119,10 +124,9 @@ namespace XeroAuth2API
                 //        _authClient.XeroConfig = XeroConfig; // Ensure the auth client has an updated copy of the token
                 onStatusUpdates("Checking Token", XeroEventStatus.Success);
 
-                if ((AutoSelectTenant.HasValue && AutoSelectTenant.Value == true) || !AutoSelectTenant.HasValue)
+                if ((XeroConfig.AutoSelectTenant.HasValue && XeroConfig.AutoSelectTenant.Value == true) || !XeroConfig.AutoSelectTenant.HasValue)
                 {
                     XeroConfig.SelectedTenant = XeroConfig.XeroAPIToken.Tenants[0];
-
                 }
 
                 // Not Sure why I did this twice
