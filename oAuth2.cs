@@ -13,8 +13,8 @@ namespace XeroAuth2API
 {
     public class oAuth2
     {
-        public Model.XeroConfiguration XeroConfig { get; set; }// Hold the First leg of the oAuth2 process
-        public Model.XeroOAuthToken XeroToken { get; set; } // Hold the Final Access and Refresh tokens
+        public Model.XeroConfiguration XeroConfig { get; set; }
+        public Model.XeroAccessToken XeroAPIToken { get; set; } // Hold the active Access and Refresh tokens
         public int? Timeout { get; set; }
 
         LocalHttpListener responseListener = null;
@@ -42,63 +42,75 @@ namespace XeroAuth2API
         /// </summary>
         /// <param name="TokenData"></param>
         /// <returns>The AccessToken record (refreshed version if it was expired prior)</returns>
-        public Model.XeroOAuthToken InitializeoAuth2(Model.XeroOAuthToken TokenData = null, int? timeout = 60)
+        public void InitializeoAuth2(int? timeout = 60)
         {
-            if (TokenData != null)
+            if (XeroConfig == null)
             {
-                XeroToken = TokenData;
+                throw new ArgumentNullException("Missing XeroConfig");
+
             }
+            if (string.IsNullOrEmpty(XeroConfig.ClientID))
+            {
+                throw new ArgumentNullException("Missing Client ID");
+            }
+            if (XeroConfig.XeroAPIToken == null)
+            {
+                XeroConfig.XeroAPIToken = new Model.XeroAccessToken();
+            }
+
             Timeout = timeout;
 
             // Check Scope change. If changed then we need to re-authenticate
-            if (XeroConfig.Scope != XeroToken.Scope)
+            if (XeroConfig.XeroAPIToken.RequestedScopes != null && XeroConfig.Scope != XeroConfig.XeroAPIToken.RequestedScopes)
             {
                 var task = Task.Run(() => BeginoAuth2Authentication());
                 task.Wait();
-                XeroToken = task.Result; // Set the internal copy of the Token
-                XeroToken.Scope = XeroConfig.Scope; // Ensure the used scope is saved
-                return XeroToken; // Return the resulting token
+                // XeroConfig.XeroAPIToken = task.Result;
+                return;
             }
             else
             {
-                if (!string.IsNullOrEmpty(TokenData.RefreshToken) && (TokenData.ExpiresAtUtc < DateTime.Now || TokenData.ExpiresAtUtc.AddDays(59) < DateTime.Now))
+                if (!string.IsNullOrEmpty(XeroConfig.XeroAPIToken.RefreshToken) &&
+                    (XeroConfig.XeroAPIToken.ExpiresAtUtc < DateTime.Now ||
+                    XeroConfig.XeroAPIToken.ExpiresAtUtc.AddDays(59) < DateTime.Now))
                 {
                     // Do a refresh
-                    return RefreshToken(TokenData);
+                    RefreshToken();
+                    return;
                 }
 
                 // Do a new authenticate if expired (over 59 days)
-                if (string.IsNullOrEmpty(TokenData.RefreshToken) || TokenData.ExpiresAtUtc.AddDays(59) < DateTime.Now)
+                if (string.IsNullOrEmpty(XeroConfig.XeroAPIToken.RefreshToken) ||
+                    XeroConfig.XeroAPIToken.ExpiresAtUtc.AddDays(59) < DateTime.Now)
                 {
                     var task = Task.Run(() => BeginoAuth2Authentication());
                     task.Wait();
-                    XeroToken = task.Result; // Set the internal copy of the Token
-                    XeroToken.Scope = XeroConfig.Scope; // Ensure the used scope is saved
-                    return XeroToken; // Return the resulting token
+                    //XeroConfig.XeroAPIToken = task.Result;
+                    return; // Return the resulting token
                 }
             }
             onStatusUpdates("Token OK", XeroEventStatus.Success);
-            return XeroToken;
+            return;
         }
         // Because we need to launch a browser and wait for authentications this needs to be a task so it can wait.
-        async Task<Model.XeroOAuthToken> BeginoAuth2Authentication()
+        async Task BeginoAuth2Authentication()
         {
             if (string.IsNullOrEmpty(XeroConfig.ClientID))
             {
-                return null;
+                throw new ArgumentNullException("Missing Client ID");
             }
             // Raise event to the parent caller (your app)
             onStatusUpdates("Begin Authentication", XeroEventStatus.Success);
 
             XeroConfig.ReturnedAccessCode = null;// Ensure the Return code cleared as we are authenticating and this propery will be monitored for the completion
-            XeroToken = new Model.XeroOAuthToken(); // Set an empty token ready
+            XeroConfig.XeroAPIToken = new Model.XeroAccessToken(); // Reset this token as we are authenticating so its all going to be replaced
             //start webserver to listen for the callback
             responseListener = new LocalHttpListener();
             responseListener.Message += MessageResponse;
             responseListener.callBackUri = XeroConfig.CallbackUri;
             responseListener.config = XeroConfig;
             responseListener.StartWebServer();
-            XeroToken.AccessToken = null; // Ensure the Access Token is cleared as we are authenticating  
+            // XeroConfig.XeroAPIToken.AccessToken = null; // Ensure the Access Token is cleared as we are authenticating  
 
             //open web browser with the link generated
             System.Diagnostics.Process.Start(XeroConfig.AuthURL);
@@ -132,7 +144,7 @@ namespace XeroAuth2API
             // Raise event to the parent caller (your app)
             onStatusUpdates("Authentication Completed", XeroEventStatus.Success);
 
-            return XeroToken;
+            return;
         }
         private void MessageResponse(object sender, LocalHttpListener.LocalHttpListenerEventArgs e)
         {
@@ -167,16 +179,12 @@ namespace XeroAuth2API
                     var contenttask = Task.Run(() => response.Content.ReadAsStringAsync());
                     contenttask.Wait();
                     var content = contenttask.Result;// await response.Content.ReadAsStringAsync();
-                    var tokens = JObject.Parse(content);
 
                     // Record the token data
-                    XeroToken.Tenants = null;
-                    XeroToken.IdToken = tokens["id_token"]?.ToString();
-                    XeroToken.AccessToken = tokens["access_token"]?.ToString();
-                    XeroToken.ExpiresAtUtc = DateTime.Now.AddSeconds(int.Parse(tokens["expires_in"]?.ToString()));
-                    XeroToken.RefreshToken = tokens["refresh_token"]?.ToString();
+                    XeroConfig.XeroAPIToken = UnpackToken(content);
+                    XeroConfig.XeroAPIToken.Tenants = null;
 
-                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", XeroToken.AccessToken);
+                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", XeroConfig.XeroAPIToken.AccessToken);
 
                     responsetask = Task.Run(() => client.GetAsync(XeroURLS.XERO_TENANTS_URL));
                     responsetask.Wait();
@@ -187,7 +195,7 @@ namespace XeroAuth2API
                     content = contenttask.Result;
 
                     // Record the Available Tenants
-                    XeroToken.Tenants = JsonConvert.DeserializeObject<List<Model.Tenant>>(content);
+                    XeroConfig.XeroAPIToken.Tenants = JsonConvert.DeserializeObject<List<Model.Tenant>>(content);
 
                     // Raise event to the parent caller (your app) 
                     onStatusUpdates("Code Exchange Completed", XeroEventStatus.Success);
@@ -205,7 +213,7 @@ namespace XeroAuth2API
         /// REvoke the Access Token and disconnect the tenants from the user
         /// </summary>
         /// <param name="xeroToken"></param>
-        public void RevokeToken(Model.XeroOAuthToken XeroToken)
+        public void RevokeToken(Model.XeroAccessToken XeroToken)
         {
             if (XeroToken == null)
             {
@@ -230,27 +238,16 @@ namespace XeroAuth2API
 
 
         }
-        public Model.XeroOAuthToken RefreshToken(Model.XeroOAuthToken TokenData = null)
+        public void RefreshToken()
         {
-            if (TokenData == null)
-            {
-                // Use passed in token object
-                TokenData = XeroToken;
-            }
             onStatusUpdates("Begin Token Refresh", XeroEventStatus.Success);
-
-            if (TokenData == null)
-            {
-                onStatusUpdates("Failed - Missing Token Data", XeroEventStatus.Failed);
-                return null;
-            }
 
             var client = new HttpClient();
             var formContent = new FormUrlEncodedContent(new[]
             {
                 new KeyValuePair<string, string>("grant_type", "refresh_token"),
                 new KeyValuePair<string, string>("client_id", XeroConfig.ClientID),
-                new KeyValuePair<string, string>("refresh_token", TokenData.RefreshToken),
+                new KeyValuePair<string, string>("refresh_token", XeroConfig.XeroAPIToken.RefreshToken),
             });
 
             var responsetask = Task.Run(() => client.PostAsync(XeroURLS.XERO_TOKEN_URL, formContent));
@@ -261,16 +258,10 @@ namespace XeroAuth2API
             contenttask.Wait();
             var content = contenttask.Result;
 
-            var tokens = JObject.Parse(content);
+            // Unpack the response tokens
+            XeroConfig.XeroAPIToken = UnpackToken(content);
 
-            // Store the data in the local copy now
-            XeroToken = new Model.XeroOAuthToken();
-
-            XeroToken.AccessToken = tokens["access_token"]?.ToString();
-            XeroToken.ExpiresAtUtc = DateTime.Now.AddSeconds(int.Parse(tokens["expires_in"]?.ToString()));
-            XeroToken.RefreshToken = tokens["refresh_token"]?.ToString();
-
-            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", XeroToken.AccessToken);
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", XeroConfig.XeroAPIToken.AccessToken);
 
             responsetask = Task.Run(() => client.GetAsync(XeroURLS.XERO_TENANTS_URL));
             responsetask.Wait();
@@ -280,14 +271,38 @@ namespace XeroAuth2API
             contenttask.Wait();
             content = contenttask.Result;// await response.Content.ReadAsStringAsync();
 
-            XeroToken.Tenants = JsonConvert.DeserializeObject<List<Model.Tenant>>(content);
+            XeroConfig.XeroAPIToken.Tenants = JsonConvert.DeserializeObject<List<Model.Tenant>>(content);
 
             onStatusUpdates("Token Refresh Success", XeroEventStatus.Refreshed);
 
-            return XeroToken;
-
+            return;
         }
+        /// <summary>
+        /// Unpack the token data from the API Authentication or Refresh calls
+        /// </summary>
+        /// <param name="content">reponse string containing the data </param>
+        /// <returns></returns>
+        private Model.XeroAccessToken UnpackToken(string content)
+        {
+            // Record the token data
+            var tokens = JObject.Parse(content);
 
+            Model.XeroAccessToken newToken = new Model.XeroAccessToken();
+
+            newToken.IdToken = tokens["id_token"]?.ToString();
+            newToken.AccessToken = tokens["access_token"]?.ToString();
+            newToken.ExpiresAtUtc = DateTime.Now.AddSeconds(int.Parse(tokens["expires_in"]?.ToString()));
+            newToken.RefreshToken = tokens["refresh_token"]?.ToString();
+            if (XeroConfig.StoreReceivedScope)
+            {
+                newToken.RequestedScopes = tokens["scope"]?.ToString(); // Ensure we record the scope used
+            } else
+            {
+                newToken.RequestedScopes = XeroConfig.Scope;
+            }
+            
+            return newToken;
+        }
         #region JSON Serialization methods
         public string SerializeObject<TENTITY>(TENTITY objectRecord)
         {
