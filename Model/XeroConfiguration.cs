@@ -9,12 +9,151 @@ namespace XeroAuth2API.Model
 {
     public class XeroConfiguration
     {
+        /// <summary>
+        /// Holds the Returned Access Code from the Authentication step that the AccessToken exchange needs
+        /// </summary>
         public string ReturnedAccessCode { get; set; }
+        /// <summary>
+        /// Holds the Returned state value provided when Authenticating. this should match the State sctring provided
+        /// Not needed for local desktop application
+        /// </summary>
         public string ReturnedState { get; set; }
         public string codeVerifier { get; set; }
+        /// <summary>
+        /// Issued when you create your Zero app
+        /// </summary>
         public string ClientID { get; set; }
+        /// <summary>
+        /// The URL on your server to redirect back to - should be http://localhost:port/name
+        /// where "port" is any valid port e.g. 8888 and "name" is something like "callback" - http://localhost:8888/callback
+        /// </summary>
         public Uri CallbackUri { get; set; }
-        public string Scope { get; set; }
+
+        private List<XeroScope> _scopes { get; set; } // Hold the list
+        /// <summary>
+        /// List of Scopes the API would like to use
+        /// If a call to any API method does not have the required scope at time of authentication
+        /// an APIAception will be thrown
+        /// </summary>
+        public List<XeroScope> Scopes
+        {
+            get
+            {
+                if (_scopes == null)
+                {
+                    _scopes = new List<XeroScope> { XeroScope.offline_access, XeroScope.openid, XeroScope.profile }; // Always need this
+                }
+
+                return _scopes;
+            }
+            set
+            {
+                _scopes = value;
+                if (!_scopes.Contains(XeroScope.offline_access))
+                {
+                    AddScope(XeroScope.offline_access); // Ensure its in there
+                    AddScope(XeroScope.openid); // Ensure its in there
+                    AddScope(XeroScope.profile); // Ensure its in there
+                }
+            }
+        }
+        /// <summary>
+        /// Add a scope to the required scopes when authenticating
+        /// </summary>
+        /// <param name="scope"></param>
+        public void AddScope(XeroScope scope)
+        {
+            switch (scope)
+            {
+                case XeroScope.all:
+                    foreach (XeroScope item in (XeroScope[])Enum.GetValues(typeof(XeroScope)))
+                    {
+                        string name = Enum.GetName(typeof(XeroScope), item);
+                        if (!name.EndsWith("_read") && !name.Contains("all"))
+                        {
+                            AddScope(item);
+                        }
+                    }
+                    break;
+                case XeroScope.all_read:
+                    foreach (XeroScope item in (XeroScope[])Enum.GetValues(typeof(XeroScope)))
+                    {
+                        string name = Enum.GetName(typeof(XeroScope), item);
+                        if (item != XeroScope.all_read && name.EndsWith("_read") && !name.Contains("all"))
+                        {
+                            AddScope(item);
+                        }
+                    }
+                    break;
+
+                case XeroScope.accounting_all:
+
+                    foreach (XeroScope item in (XeroScope[])Enum.GetValues(typeof(XeroScope)))
+                    {
+                        string name = Enum.GetName(typeof(XeroScope), item);
+                        if (name.StartsWith("accounting") && !name.EndsWith("_read") && !name.Contains("all"))
+                        {
+                            AddScope(item);
+                        }
+                    }
+                    break;
+                case XeroScope.accounting_all_read:
+                    foreach (XeroScope item in (XeroScope[])Enum.GetValues(typeof(XeroScope)))
+                    {
+                        string name = Enum.GetName(typeof(XeroScope), item);
+                        if (name.StartsWith("accounting") && name.EndsWith("_read") && !name.Contains("all"))
+                        {
+                            AddScope(item);
+                        }
+                    }
+                    break;
+
+
+
+                default:
+                    // Add any not already in list
+                    if (!Scopes.Contains(scope))
+                    {
+                        Scopes.Add(scope);
+                    }
+                    break;
+            }
+
+
+        }
+        /// <summary>
+        /// String representation of the list of scopes selected
+        /// </summary>
+        public string Scope
+        {
+            get
+            {
+                string scopelist = string.Empty;
+                foreach (var item in Scopes)
+                {
+                    if (!string.IsNullOrEmpty(scopelist))
+                    {
+                        scopelist += " ";
+                    }
+                    if (item == XeroScope.offline_access)
+                    {
+                        // Dont replace the _ with . for offline access as this is the correct name to pass !!!!!!!
+                        scopelist += item.ToString();
+                    }
+                    else
+                    {
+                        scopelist += item.ToString().Replace("_", ".");
+                    }
+
+                }
+                return scopelist;
+            }
+        }
+        /// <summary>
+        /// a unique string to be passed back on completion (optional) 
+        /// The state parameter should be used to avoid forgery attacks. Pass in a value that's unique to the user you're sending through authorisation. It will be passed back after the user completes authorisation.
+        /// Generally not required for a Desktop application
+        /// </summary>
         public string State { get; set; }
         /// <summary>
         /// Returns the URL to authenticate with Xero
