@@ -11,6 +11,7 @@ namespace XeroAuth2API
     {
         oAuth2 _authClient = null;
         Xero.NetStandard.OAuth2.Api.AccountingApi xeroAPI_A = new Xero.NetStandard.OAuth2.Api.AccountingApi();
+        Xero.NetStandard.OAuth2.Api.AssetApi xeroAPI_Assets = new Xero.NetStandard.OAuth2.Api.AssetApi();
         public Model.XeroConfiguration XeroConfig { get; set; }
         public string TenantID { get; set; } // The Tenant ID to use for API calls
         /// <summary>
@@ -73,15 +74,26 @@ namespace XeroAuth2API
         }
         public API(Model.XeroConfiguration config, Model.XeroOAuthToken token = null)
         {
+            if (config == null)
+            {
+                throw new ArgumentNullException("Missing XeroConfig");
+            }
+
             XeroConfig = config;
             if (XeroConfig.codeVerifier == null)
             {
                 XeroConfig.codeVerifier = GenerateCodeVerifier();
             }
+            // Check the Scope and ensure offline_access is included - if not then add it
+            if (!config.Scope.Contains("offline_access"))
+            {
+                config.Scope += " offline_access";
+            }
             _authClient = new oAuth2();
             _authClient.XeroToken = token; // Old Token
             _authClient.ParentAPI = this;
             _authClient.XeroConfig = XeroConfig;
+
         }
 
         public void InitializeAPI(Model.XeroOAuthToken token = null)
@@ -94,23 +106,31 @@ namespace XeroAuth2API
             {
                 _authClient.XeroToken = token; // Old Token
             }
-
-            var task = Task.Run(() => _authClient.InitializeoAuth2(_authClient.XeroToken));
-            task.Wait();
-            _authClient.XeroToken = task.Result; // Update the token incase it was refreshed or new
-            onStatusUpdates("Checking Token", XeroEventStatus.Success);
-
-            if ((AutoSelectTenant.HasValue && AutoSelectTenant.Value == true) || !AutoSelectTenant.HasValue)
+            try
             {
-                TenantID = _authClient.XeroToken.Tenants[0].TenantId.ToString();
+
+                var task = Task.Run(() => _authClient.InitializeoAuth2(_authClient.XeroToken));
+                task.Wait();
+                _authClient.XeroToken = task.Result; // Update the token incase it was refreshed or new
+                onStatusUpdates("Checking Token", XeroEventStatus.Success);
+
+                if ((AutoSelectTenant.HasValue && AutoSelectTenant.Value == true) || !AutoSelectTenant.HasValue)
+                {
+                    TenantID = _authClient.XeroToken.Tenants[0].TenantId.ToString();
+                }
+
+                AccessToken = _authClient.XeroToken.AccessToken;
+                // Not Sure why I did this twice
+                //task = Task.Run(() => _authClient.InitializeoAuth2(_authClient.XeroToken));
+                //task.Wait();
+
+                onStatusUpdates("Ready", XeroEventStatus.Success);
             }
-
-            AccessToken = _authClient.XeroToken.AccessToken;
-
-            task = Task.Run(() => _authClient.InitializeoAuth2(_authClient.XeroToken));
-            task.Wait();
-
-            onStatusUpdates("Ready", XeroEventStatus.Success);
+            catch (Exception ex)
+            {
+                var er = ex.InnerException as Xero.NetStandard.OAuth2.Client.ApiException;
+                throw new Xero.NetStandard.OAuth2.Client.ApiException(er.ErrorCode, er.Message, er.ErrorContent);
+            }
         }
         private string GenerateCodeVerifier()
         {
@@ -140,31 +160,48 @@ namespace XeroAuth2API
         public List<Xero.NetStandard.OAuth2.Model.Accounting.Account> Accounts(string filter = null, DateTime? ModifiedSince = null, string order = null)
         {
             onStatusUpdates("Fetch Accounts", XeroEventStatus.Log);
-
-            var task = Task.Run(() => xeroAPI_A.GetAccountsAsync(AccessToken, TenantID, ModifiedSince, filter, order));
-            task.Wait();
-            if (task.Result._Accounts.Count > 0)
+            try
             {
-                onStatusUpdates("Fetch Accounts - Success", XeroEventStatus.Log);
-                return task.Result._Accounts;
+                var task = Task.Run(() => xeroAPI_A.GetAccountsAsync(AccessToken, TenantID, ModifiedSince, filter, order));
+                task.Wait();
+                if (task.Result._Accounts.Count > 0)
+                {
+                    onStatusUpdates("Fetch Accounts - Success", XeroEventStatus.Log);
+                    return task.Result._Accounts;
+                }
             }
+            catch (Exception ex)
+            {
+                var er = ex.InnerException as Xero.NetStandard.OAuth2.Client.ApiException;
+                throw new Xero.NetStandard.OAuth2.Client.ApiException(er.ErrorCode, er.Message, er.ErrorContent);
+            }
+
             return null;
         }
         /// <summary>
         /// Retreive a single Account record 
         /// </summary>
-        /// <param name="accountID">Unique identifier for retrieving single object</param>
+        /// <param name="accountID">Unique identifier for the record</param>
         /// <returns>Account</returns>
         public Xero.NetStandard.OAuth2.Model.Accounting.Account Account(Guid accountID)
         {
             onStatusUpdates("Fetch Account", XeroEventStatus.Log);
-            var task = Task.Run(() => xeroAPI_A.GetAccountAsync(AccessToken, TenantID, accountID));
-            task.Wait();
-            if (task.Result._Accounts.Count > 0)
+            try
             {
-                onStatusUpdates("Fetch Account - Success", XeroEventStatus.Log);
-                return task.Result._Accounts[0];
+                var task = Task.Run(() => xeroAPI_A.GetAccountAsync(AccessToken, TenantID, accountID));
+                task.Wait();
+                if (task.Result._Accounts.Count > 0)
+                {
+                    onStatusUpdates("Fetch Account - Success", XeroEventStatus.Log);
+                    return task.Result._Accounts[0];
+                }
             }
+            catch (Exception ex)
+            {
+                var er = ex.InnerException as Xero.NetStandard.OAuth2.Client.ApiException;
+                throw new Xero.NetStandard.OAuth2.Client.ApiException(er.ErrorCode, er.Message, er.ErrorContent);
+            }
+
             return null;
         }
         /// <summary>
@@ -177,13 +214,21 @@ namespace XeroAuth2API
             {
                 throw new ArgumentNullException("Missing Account");
             }
-
-            var task = Task.Run(() => xeroAPI_A.CreateAccountAsync(AccessToken, TenantID, record));
-            task.Wait();
-            if (task.Result._Accounts.Count > 0)
+            try
             {
-                return task.Result._Accounts[0];
+                var task = Task.Run(() => xeroAPI_A.CreateAccountAsync(AccessToken, TenantID, record));
+                task.Wait();
+                if (task.Result._Accounts.Count > 0)
+                {
+                    return task.Result._Accounts[0];
+                }
             }
+            catch (Exception ex)
+            {
+                var er = ex.InnerException as Xero.NetStandard.OAuth2.Client.ApiException;
+                throw new Xero.NetStandard.OAuth2.Client.ApiException(er.ErrorCode, er.Message, er.ErrorContent);
+            }
+
             return null;
         }
         /// <summary>
@@ -197,19 +242,27 @@ namespace XeroAuth2API
             {
                 throw new ArgumentNullException("Missing Account");
             }
-
-            var list = new List<Xero.NetStandard.OAuth2.Model.Accounting.Account>();
-            list.Add(record);
-
-            var header = new Xero.NetStandard.OAuth2.Model.Accounting.Accounts();
-            header._Accounts = list;
-
-            var task = Task.Run(() => xeroAPI_A.UpdateAccountAsync(AccessToken, TenantID, record.AccountID.Value, header));
-            task.Wait();
-            if (task.Result._Accounts.Count > 0)
+            try
             {
-                return task.Result._Accounts[0];
+                var list = new List<Xero.NetStandard.OAuth2.Model.Accounting.Account>();
+                list.Add(record);
+
+                var header = new Xero.NetStandard.OAuth2.Model.Accounting.Accounts();
+                header._Accounts = list;
+
+                var task = Task.Run(() => xeroAPI_A.UpdateAccountAsync(AccessToken, TenantID, record.AccountID.Value, header));
+                task.Wait();
+                if (task.Result._Accounts.Count > 0)
+                {
+                    return task.Result._Accounts[0];
+                }
             }
+            catch (Exception ex)
+            {
+                var er = ex.InnerException as Xero.NetStandard.OAuth2.Client.ApiException;
+                throw new Xero.NetStandard.OAuth2.Client.ApiException(er.ErrorCode, er.Message, er.ErrorContent);
+            }
+
             return null;
         }
         /// <summary>
@@ -217,7 +270,7 @@ namespace XeroAuth2API
         /// Non-system accounts and accounts not used on transactions can be deleted using the delete method. 
         /// If an account is not able to be deleted you can update the status to "ARCHIVED"
         /// </summary>
-        /// <param name="accountID">Unique identifier of the account to delete</param>
+        /// <param name="accountID">Unique identifier for the record</param>
         /// <returns></returns>
         public bool DeleteAccount(Guid AccountID)
         {
@@ -225,11 +278,19 @@ namespace XeroAuth2API
             {
                 throw new ArgumentNullException("Missing Account ID");
             }
-            var task = Task.Run(() => xeroAPI_A.DeleteAccountAsync(AccessToken, TenantID, AccountID));
-            task.Wait();
-            if (task.Result._Accounts.Count > 0)
+            try
             {
-                return true;
+                var task = Task.Run(() => xeroAPI_A.DeleteAccountAsync(AccessToken, TenantID, AccountID));
+                task.Wait();
+                if (task.Result._Accounts.Count > 0)
+                {
+                    return true;
+                }
+            }
+            catch (Exception ex)
+            {
+                var er = ex.InnerException as Xero.NetStandard.OAuth2.Client.ApiException;
+                throw new Xero.NetStandard.OAuth2.Client.ApiException(er.ErrorCode, er.Message, er.ErrorContent);
             }
 
             return false;
@@ -256,40 +317,57 @@ namespace XeroAuth2API
             {
                 page = onlypage.Value;
             }
-
-            var records = new List<Xero.NetStandard.OAuth2.Model.Accounting.BankTransaction>(); // Hold the records 
-            int count = 100; // This is how many per page - setting this will ensure we check for the first page is a full 100 and loop until all returned            
-            while (count == 100)
+            try
             {
-                var task = Task.Run(() => xeroAPI_A.GetBankTransactionsAsync(AccessToken, TenantID, ModifiedSince, filter, order, page++, unitdp));
-                task.Wait();
-                records.AddRange(task.Result._BankTransactions); // Add the next page records returned
-                count = task.Result._BankTransactions.Count; // Record the number of records returned in this page. if less than 100 then the loop will exit otherwise get the next page full
-                if (onlypage.HasValue)
+                var records = new List<Xero.NetStandard.OAuth2.Model.Accounting.BankTransaction>(); // Hold the records 
+                int count = 100; // This is how many per page - setting this will ensure we check for the first page is a full 100 and loop until all returned            
+                while (count == 100)
                 {
-                    count = -1;
+                    var task = Task.Run(() => xeroAPI_A.GetBankTransactionsAsync(AccessToken, TenantID, ModifiedSince, filter, order, page++, unitdp));
+                    task.Wait();
+                    records.AddRange(task.Result._BankTransactions); // Add the next page records returned
+                    count = task.Result._BankTransactions.Count; // Record the number of records returned in this page. if less than 100 then the loop will exit otherwise get the next page full
+                    if (onlypage.HasValue)
+                    {
+                        count = -1;
+                    }
+                }
+
+                if (records.Count > 0)
+                {
+                    return records;
                 }
             }
-
-            if (records.Count > 0)
+            catch (Exception ex)
             {
-                return records;
+                var er = ex.InnerException as Xero.NetStandard.OAuth2.Client.ApiException;
+                throw new Xero.NetStandard.OAuth2.Client.ApiException(er.ErrorCode, er.Message, er.ErrorContent);
             }
+
             return null;
         }
         /// <summary>
         /// Return a single transaction 
         /// </summary>
-        /// <param name="transactionID">Guid of the Transaction</param>
+        /// <param name="transactionID">Unique identifier for the record</param>
         /// <returns>single BankTransaction record</returns>
         public Xero.NetStandard.OAuth2.Model.Accounting.BankTransaction BankTransaction(Guid transactionID)
         {
-            var task = Task.Run(() => xeroAPI_A.GetBankTransactionAsync(AccessToken, TenantID, transactionID));
-            task.Wait();
-            if (task.Result._BankTransactions.Count > 0)
+            try
             {
-                return task.Result._BankTransactions[0];
+                var task = Task.Run(() => xeroAPI_A.GetBankTransactionAsync(AccessToken, TenantID, transactionID));
+                task.Wait();
+                if (task.Result._BankTransactions.Count > 0)
+                {
+                    return task.Result._BankTransactions[0];
+                }
             }
+            catch (Exception ex)
+            {
+                var er = ex.InnerException as Xero.NetStandard.OAuth2.Client.ApiException;
+                throw new Xero.NetStandard.OAuth2.Client.ApiException(er.ErrorCode, er.Message, er.ErrorContent);
+            }
+
             return null;
         }
         #endregion
@@ -307,27 +385,45 @@ namespace XeroAuth2API
         /// <returns></returns>
         public List<Xero.NetStandard.OAuth2.Model.Accounting.BankTransfer> BankTransfers(string filter = null, string order = null, DateTime? ModifiedSince = null)
         {
-            var task = Task.Run(() => xeroAPI_A.GetBankTransfersAsync(AccessToken, TenantID, ModifiedSince, filter, order));
-            task.Wait();
-            if (task.Result._BankTransfers.Count > 0)
+            try
             {
-                return task.Result._BankTransfers;
+                var task = Task.Run(() => xeroAPI_A.GetBankTransfersAsync(AccessToken, TenantID, ModifiedSince, filter, order));
+                task.Wait();
+                if (task.Result._BankTransfers.Count > 0)
+                {
+                    return task.Result._BankTransfers;
+                }
             }
+            catch (Exception ex)
+            {
+                var er = ex.InnerException as Xero.NetStandard.OAuth2.Client.ApiException;
+                throw new Xero.NetStandard.OAuth2.Client.ApiException(er.ErrorCode, er.Message, er.ErrorContent);
+            }
+
             return null;
         }
         /// <summary>
         /// Return a single Bank Transfer Record 
         /// </summary>
-        /// <param name="bankTransferID">Xero generated unique identifier for a bank transfer</param>
+        /// <param name="bankTransferID">Unique identifier for the record</param>
         /// <returns>single BankTransfer record</returns>
         public Xero.NetStandard.OAuth2.Model.Accounting.BankTransfer BankTransfer(Guid bankTransferID)
         {
-            var task = Task.Run(() => xeroAPI_A.GetBankTransferAsync(AccessToken, TenantID, bankTransferID));
-            task.Wait();
-            if (task.Result._BankTransfers.Count > 0)
+            try
             {
-                return task.Result._BankTransfers[0];
+                var task = Task.Run(() => xeroAPI_A.GetBankTransferAsync(AccessToken, TenantID, bankTransferID));
+                task.Wait();
+                if (task.Result._BankTransfers.Count > 0)
+                {
+                    return task.Result._BankTransfers[0];
+                }
             }
+            catch (Exception ex)
+            {
+                var er = ex.InnerException as Xero.NetStandard.OAuth2.Client.ApiException;
+                throw new Xero.NetStandard.OAuth2.Client.ApiException(er.ErrorCode, er.Message, er.ErrorContent);
+            }
+
             return null;
         }
         /// <summary>
@@ -341,19 +437,27 @@ namespace XeroAuth2API
             {
                 throw new ArgumentNullException("Missing BankTransfer");
             }
-
-            var list = new List<Xero.NetStandard.OAuth2.Model.Accounting.BankTransfer>();
-            list.Add(record);
-
-            var header = new Xero.NetStandard.OAuth2.Model.Accounting.BankTransfers();
-            header._BankTransfers = list;
-
-            var task = Task.Run(() => xeroAPI_A.CreateBankTransferAsync(AccessToken, TenantID, header));
-            task.Wait();
-            if (task.Result._BankTransfers.Count > 0)
+            try
             {
-                return task.Result._BankTransfers[0];
+                var list = new List<Xero.NetStandard.OAuth2.Model.Accounting.BankTransfer>();
+                list.Add(record);
+
+                var header = new Xero.NetStandard.OAuth2.Model.Accounting.BankTransfers();
+                header._BankTransfers = list;
+
+                var task = Task.Run(() => xeroAPI_A.CreateBankTransferAsync(AccessToken, TenantID, header));
+                task.Wait();
+                if (task.Result._BankTransfers.Count > 0)
+                {
+                    return task.Result._BankTransfers[0];
+                }
             }
+            catch (Exception ex)
+            {
+                var er = ex.InnerException as Xero.NetStandard.OAuth2.Client.ApiException;
+                throw new Xero.NetStandard.OAuth2.Client.ApiException(er.ErrorCode, er.Message, er.ErrorContent);
+            }
+
             return null;
         }
         /// <summary>
@@ -367,16 +471,24 @@ namespace XeroAuth2API
             {
                 throw new ArgumentNullException("Missing BankTransfer list");
             }
-
-            var header = new Xero.NetStandard.OAuth2.Model.Accounting.BankTransfers();
-            header._BankTransfers = records;
-
-            var task = Task.Run(() => xeroAPI_A.CreateBankTransferAsync(AccessToken, TenantID, header));
-            task.Wait();
-            if (task.Result._BankTransfers.Count > 0)
+            try
             {
-                return task.Result._BankTransfers[0];
+                var header = new Xero.NetStandard.OAuth2.Model.Accounting.BankTransfers();
+                header._BankTransfers = records;
+
+                var task = Task.Run(() => xeroAPI_A.CreateBankTransferAsync(AccessToken, TenantID, header));
+                task.Wait();
+                if (task.Result._BankTransfers.Count > 0)
+                {
+                    return task.Result._BankTransfers[0];
+                }
             }
+            catch (Exception ex)
+            {
+                var er = ex.InnerException as Xero.NetStandard.OAuth2.Client.ApiException;
+                throw new Xero.NetStandard.OAuth2.Client.ApiException(er.ErrorCode, er.Message, er.ErrorContent);
+            }
+
             return null;
         }
         #endregion
@@ -394,12 +506,21 @@ namespace XeroAuth2API
         /// <returns></returns>
         public Xero.NetStandard.OAuth2.Model.Accounting.BatchPayment BatchPayments(string filter = null, string order = null, DateTime? ModifiedSince = null)
         {
-            var task = Task.Run(() => xeroAPI_A.GetBatchPaymentsAsync(AccessToken, TenantID, ModifiedSince, filter, order));
-            task.Wait();
-            if (task.Result._BatchPayments.Count > 0)
+            try
             {
-                return task.Result._BatchPayments[0];
+                var task = Task.Run(() => xeroAPI_A.GetBatchPaymentsAsync(AccessToken, TenantID, ModifiedSince, filter, order));
+                task.Wait();
+                if (task.Result._BatchPayments.Count > 0)
+                {
+                    return task.Result._BatchPayments[0];
+                }
             }
+            catch (Exception ex)
+            {
+                var er = ex.InnerException as Xero.NetStandard.OAuth2.Client.ApiException;
+                throw new Xero.NetStandard.OAuth2.Client.ApiException(er.ErrorCode, er.Message, er.ErrorContent);
+            }
+
             return null;
         }
         /// <summary>
@@ -413,19 +534,27 @@ namespace XeroAuth2API
             {
                 throw new ArgumentNullException("Missing BatchPayment");
             }
-
-            var list = new List<Xero.NetStandard.OAuth2.Model.Accounting.BatchPayment>();
-            list.Add(record);
-
-            var header = new Xero.NetStandard.OAuth2.Model.Accounting.BatchPayments();
-            header._BatchPayments = list;
-
-            var task = Task.Run(() => xeroAPI_A.CreateBatchPaymentAsync(AccessToken, TenantID, header));
-            task.Wait();
-            if (task.Result._BatchPayments.Count > 0)
+            try
             {
-                return task.Result._BatchPayments[0];
+                var list = new List<Xero.NetStandard.OAuth2.Model.Accounting.BatchPayment>();
+                list.Add(record);
+
+                var header = new Xero.NetStandard.OAuth2.Model.Accounting.BatchPayments();
+                header._BatchPayments = list;
+
+                var task = Task.Run(() => xeroAPI_A.CreateBatchPaymentAsync(AccessToken, TenantID, header));
+                task.Wait();
+                if (task.Result._BatchPayments.Count > 0)
+                {
+                    return task.Result._BatchPayments[0];
+                }
             }
+            catch (Exception ex)
+            {
+                var er = ex.InnerException as Xero.NetStandard.OAuth2.Client.ApiException;
+                throw new Xero.NetStandard.OAuth2.Client.ApiException(er.ErrorCode, er.Message, er.ErrorContent);
+            }
+
             return null;
         }
         /// <summary>
@@ -439,16 +568,24 @@ namespace XeroAuth2API
             {
                 throw new ArgumentNullException("Missing BatchPayments list");
             }
-
-            var header = new Xero.NetStandard.OAuth2.Model.Accounting.BatchPayments();
-            header._BatchPayments = records;
-
-            var task = Task.Run(() => xeroAPI_A.CreateBatchPaymentAsync(AccessToken, TenantID, header));
-            task.Wait();
-            if (task.Result._BatchPayments.Count > 0)
+            try
             {
-                return task.Result._BatchPayments;
+                var header = new Xero.NetStandard.OAuth2.Model.Accounting.BatchPayments();
+                header._BatchPayments = records;
+
+                var task = Task.Run(() => xeroAPI_A.CreateBatchPaymentAsync(AccessToken, TenantID, header));
+                task.Wait();
+                if (task.Result._BatchPayments.Count > 0)
+                {
+                    return task.Result._BatchPayments;
+                }
             }
+            catch (Exception ex)
+            {
+                var er = ex.InnerException as Xero.NetStandard.OAuth2.Client.ApiException;
+                throw new Xero.NetStandard.OAuth2.Client.ApiException(er.ErrorCode, er.Message, er.ErrorContent);
+            }
+
             return null;
         }
         #endregion
@@ -463,27 +600,45 @@ namespace XeroAuth2API
         /// <returns>List containing all the branding themes</returns>
         public List<Xero.NetStandard.OAuth2.Model.Accounting.BrandingTheme> BrandingThemes()
         {
-            var task = Task.Run(() => xeroAPI_A.GetBrandingThemesAsync(AccessToken, TenantID));
-            task.Wait();
-            if (task.Result._BrandingThemes.Count > 0)
+            try
             {
-                return task.Result._BrandingThemes;
+                var task = Task.Run(() => xeroAPI_A.GetBrandingThemesAsync(AccessToken, TenantID));
+                task.Wait();
+                if (task.Result._BrandingThemes.Count > 0)
+                {
+                    return task.Result._BrandingThemes;
+                }
             }
+            catch (Exception ex)
+            {
+                var er = ex.InnerException as Xero.NetStandard.OAuth2.Client.ApiException;
+                throw new Xero.NetStandard.OAuth2.Client.ApiException(er.ErrorCode, er.Message, er.ErrorContent);
+            }
+
             return null;
         }
         /// <summary>
         /// Get a single branding theme object 
         /// </summary>
-        /// <param name="brandingThemeID">The Guid of the branding theme required</param>
+        /// <param name="brandingThemeID">Unique identifier for the record</param>
         /// <returns></returns>
         public Xero.NetStandard.OAuth2.Model.Accounting.BrandingTheme BrandingTheme(Guid brandingThemeID)
         {
-            var task = Task.Run(() => xeroAPI_A.GetBrandingThemeAsync(AccessToken, TenantID, brandingThemeID));
-            task.Wait();
-            if (task.Result._BrandingThemes.Count > 0)
+            try
             {
-                return task.Result._BrandingThemes[0];
+                var task = Task.Run(() => xeroAPI_A.GetBrandingThemeAsync(AccessToken, TenantID, brandingThemeID));
+                task.Wait();
+                if (task.Result._BrandingThemes.Count > 0)
+                {
+                    return task.Result._BrandingThemes[0];
+                }
             }
+            catch (Exception ex)
+            {
+                var er = ex.InnerException as Xero.NetStandard.OAuth2.Client.ApiException;
+                throw new Xero.NetStandard.OAuth2.Client.ApiException(er.ErrorCode, er.Message, er.ErrorContent);
+            }
+
             return null;
         }
         #endregion
@@ -511,31 +666,39 @@ namespace XeroAuth2API
             {
                 page = onlypage.Value;
             }
-
-            var records = new List<Xero.NetStandard.OAuth2.Model.Accounting.Contact>(); // Hold the records
-            int count = 100; // This is how many per page - setting this will ensure we check for the first page is a full 100 and loop until all returned            // If onlypage is set then the client only wants that page of records so stop processing
-            while (count == 100)
+            try
             {
-                var task = Task.Run(() => xeroAPI_A.GetContactsAsync(AccessToken, TenantID, ModifiedSince, filter, order, iDs, page++, includeArchived));
-                task.Wait();
-                records.AddRange(task.Result._Contacts); // Add the next page records returned
-                count = task.Result._Contacts.Count; // Record the number of records returned in this page. if less than 100 then the loop will exit otherwise get the next page full
-                if (onlypage.HasValue)
+                var records = new List<Xero.NetStandard.OAuth2.Model.Accounting.Contact>(); // Hold the records
+                int count = 100; // This is how many per page - setting this will ensure we check for the first page is a full 100 and loop until all returned     
+                while (count == 100)
                 {
-                    count = -1;
+                    var task = Task.Run(() => xeroAPI_A.GetContactsAsync(AccessToken, TenantID, ModifiedSince, filter, order, iDs, page++, includeArchived));
+                    task.Wait();
+                    records.AddRange(task.Result._Contacts); // Add the next page records returned
+                    count = task.Result._Contacts.Count; // Record the number of records returned in this page. if less than 100 then the loop will exit otherwise get the next page full
+                    if (onlypage.HasValue)
+                    {
+                        count = -1;
+                    }
+                }
+
+                if (records.Count > 0)
+                {
+                    return records;
                 }
             }
-
-            if (records.Count > 0)
+            catch (Exception ex)
             {
-                return records;
+                var er = ex.InnerException as Xero.NetStandard.OAuth2.Client.ApiException;
+                throw new Xero.NetStandard.OAuth2.Client.ApiException(er.ErrorCode, er.Message, er.ErrorContent);
             }
+
             return null;
         }
         /// <summary>
         /// Return a single contact
         /// </summary>
-        /// <param name="contactID">Unique identifier for a Contact</param>
+        /// <param name="contactID">Unique identifier for the record</param>
         /// <returns>A contact reocrd</returns>
         public Xero.NetStandard.OAuth2.Model.Accounting.Contact GetContact(Guid contactID)
         {
@@ -543,13 +706,21 @@ namespace XeroAuth2API
             {
                 throw new ArgumentNullException("Missing Contact ID");
             }
-
-            var task = Task.Run(() => xeroAPI_A.GetContactAsync(AccessToken, TenantID, contactID));
-            task.Wait();
-            if (task.Result._Contacts.Count > 0)
+            try
             {
-                return task.Result._Contacts[0];
+                var task = Task.Run(() => xeroAPI_A.GetContactAsync(AccessToken, TenantID, contactID));
+                task.Wait();
+                if (task.Result._Contacts.Count > 0)
+                {
+                    return task.Result._Contacts[0];
+                }
             }
+            catch (Exception ex)
+            {
+                var er = ex.InnerException as Xero.NetStandard.OAuth2.Client.ApiException;
+                throw new Xero.NetStandard.OAuth2.Client.ApiException(er.ErrorCode, er.Message, er.ErrorContent);
+            }
+
             return null;
         }
         /// <summary>
@@ -563,18 +734,27 @@ namespace XeroAuth2API
             {
                 throw new ArgumentNullException("Missing Contact ");
             }
-            var list = new List<Xero.NetStandard.OAuth2.Model.Accounting.Contact>();
-            list.Add(record);
-
-            var header = new Xero.NetStandard.OAuth2.Model.Accounting.Contacts();
-            header._Contacts = list;
-
-            var task = Task.Run(() => xeroAPI_A.CreateContactsAsync(AccessToken, TenantID, header));
-            task.Wait();
-            if (task.Result._Contacts.Count > 0)
+            try
             {
-                return task.Result._Contacts[0];
+                var list = new List<Xero.NetStandard.OAuth2.Model.Accounting.Contact>();
+                list.Add(record);
+
+                var header = new Xero.NetStandard.OAuth2.Model.Accounting.Contacts();
+                header._Contacts = list;
+
+                var task = Task.Run(() => xeroAPI_A.CreateContactsAsync(AccessToken, TenantID, header));
+                task.Wait();
+                if (task.Result._Contacts.Count > 0)
+                {
+                    return task.Result._Contacts[0];
+                }
             }
+            catch (Exception ex)
+            {
+                var er = ex.InnerException as Xero.NetStandard.OAuth2.Client.ApiException;
+                throw new Xero.NetStandard.OAuth2.Client.ApiException(er.ErrorCode, er.Message, er.ErrorContent);
+            }
+
             return null;
         }
         /// <summary>
@@ -588,15 +768,24 @@ namespace XeroAuth2API
             {
                 throw new ArgumentNullException("Missing Contacts List");
             }
-            var header = new Xero.NetStandard.OAuth2.Model.Accounting.Contacts();
-            header._Contacts = records;
-
-            var task = Task.Run(() => xeroAPI_A.CreateContactsAsync(AccessToken, TenantID, header));
-            task.Wait();
-            if (task.Result._Contacts.Count > 0)
+            try
             {
-                return task.Result._Contacts;
+                var header = new Xero.NetStandard.OAuth2.Model.Accounting.Contacts();
+                header._Contacts = records;
+
+                var task = Task.Run(() => xeroAPI_A.CreateContactsAsync(AccessToken, TenantID, header));
+                task.Wait();
+                if (task.Result._Contacts.Count > 0)
+                {
+                    return task.Result._Contacts;
+                }
             }
+            catch (Exception ex)
+            {
+                var er = ex.InnerException as Xero.NetStandard.OAuth2.Client.ApiException;
+                throw new Xero.NetStandard.OAuth2.Client.ApiException(er.ErrorCode, er.Message, er.ErrorContent);
+            }
+
             return null;
         }
         /// <summary>
@@ -610,19 +799,27 @@ namespace XeroAuth2API
             {
                 throw new ArgumentNullException("Missing Contact");
             }
-
-            var list = new List<Xero.NetStandard.OAuth2.Model.Accounting.Contact>();
-            list.Add(record);
-
-            var header = new Xero.NetStandard.OAuth2.Model.Accounting.Contacts();
-            header._Contacts = list;
-
-            var task = Task.Run(() => xeroAPI_A.UpdateContactAsync(AccessToken, TenantID, record.ContactID.Value, header));
-            task.Wait();
-            if (task.Result._Contacts.Count > 0)
+            try
             {
-                return task.Result._Contacts[0];
+                var list = new List<Xero.NetStandard.OAuth2.Model.Accounting.Contact>();
+                list.Add(record);
+
+                var header = new Xero.NetStandard.OAuth2.Model.Accounting.Contacts();
+                header._Contacts = list;
+
+                var task = Task.Run(() => xeroAPI_A.UpdateContactAsync(AccessToken, TenantID, record.ContactID.Value, header));
+                task.Wait();
+                if (task.Result._Contacts.Count > 0)
+                {
+                    return task.Result._Contacts[0];
+                }
             }
+            catch (Exception ex)
+            {
+                var er = ex.InnerException as Xero.NetStandard.OAuth2.Client.ApiException;
+                throw new Xero.NetStandard.OAuth2.Client.ApiException(er.ErrorCode, er.Message, er.ErrorContent);
+            }
+
             return null;
         }
         /// <summary>
@@ -636,16 +833,24 @@ namespace XeroAuth2API
             {
                 throw new ArgumentNullException("Missing Contact list");
             }
-
-            var header = new Xero.NetStandard.OAuth2.Model.Accounting.Contacts();
-            header._Contacts = records;
-
-            var task = Task.Run(() => xeroAPI_A.UpdateContactAsync(AccessToken, TenantID, new Guid(), header));
-            task.Wait();
-            if (task.Result._Contacts.Count > 0)
+            try
             {
-                return task.Result._Contacts;
+                var header = new Xero.NetStandard.OAuth2.Model.Accounting.Contacts();
+                header._Contacts = records;
+
+                var task = Task.Run(() => xeroAPI_A.UpdateContactAsync(AccessToken, TenantID, new Guid(), header));
+                task.Wait();
+                if (task.Result._Contacts.Count > 0)
+                {
+                    return task.Result._Contacts;
+                }
             }
+            catch (Exception ex)
+            {
+                var er = ex.InnerException as Xero.NetStandard.OAuth2.Client.ApiException;
+                throw new Xero.NetStandard.OAuth2.Client.ApiException(er.ErrorCode, er.Message, er.ErrorContent);
+            }
+
             return null;
         }
         #endregion
@@ -661,27 +866,45 @@ namespace XeroAuth2API
         /// <returns>List of ContactGroup records</returns>
         public List<Xero.NetStandard.OAuth2.Model.Accounting.ContactGroup> ContactGroup(string filter = null, string order = null)
         {
-            var task = Task.Run(() => xeroAPI_A.GetContactGroupsAsync(AccessToken, TenantID, filter, order));
-            task.Wait();
-            if (task.Result._ContactGroups.Count > 0)
+            try
             {
-                return task.Result._ContactGroups;
+                var task = Task.Run(() => xeroAPI_A.GetContactGroupsAsync(AccessToken, TenantID, filter, order));
+                task.Wait();
+                if (task.Result._ContactGroups.Count > 0)
+                {
+                    return task.Result._ContactGroups;
+                }
             }
+            catch (Exception ex)
+            {
+                var er = ex.InnerException as Xero.NetStandard.OAuth2.Client.ApiException;
+                throw new Xero.NetStandard.OAuth2.Client.ApiException(er.ErrorCode, er.Message, er.ErrorContent);
+            }
+
             return null;
         }
         /// <summary>
         /// Return a unique Contact Group by ID
         /// </summary>
-        /// <param name="contactGroupID">Unique identifier for a Contact Group</param>
+        /// <param name="contactGroupID">Unique identifier for the record</param>
         /// <returns>The ContactGroup Record</returns>
         public Xero.NetStandard.OAuth2.Model.Accounting.ContactGroup ContactGroup(Guid contactGroupID)
         {
-            var task = Task.Run(() => xeroAPI_A.GetContactGroupAsync(AccessToken, TenantID, contactGroupID));
-            task.Wait();
-            if (task.Result._ContactGroups.Count > 0)
+            try
             {
-                return task.Result._ContactGroups[0];
+                var task = Task.Run(() => xeroAPI_A.GetContactGroupAsync(AccessToken, TenantID, contactGroupID));
+                task.Wait();
+                if (task.Result._ContactGroups.Count > 0)
+                {
+                    return task.Result._ContactGroups[0];
+                }
             }
+            catch (Exception ex)
+            {
+                var er = ex.InnerException as Xero.NetStandard.OAuth2.Client.ApiException;
+                throw new Xero.NetStandard.OAuth2.Client.ApiException(er.ErrorCode, er.Message, er.ErrorContent);
+            }
+
             return null;
         }
         /// <summary>
@@ -695,18 +918,27 @@ namespace XeroAuth2API
             {
                 throw new ArgumentNullException("Missing Contact Group Record ");
             }
-            var list = new List<Xero.NetStandard.OAuth2.Model.Accounting.ContactGroup>();
-            list.Add(record);
-
-            var header = new Xero.NetStandard.OAuth2.Model.Accounting.ContactGroups();
-            header._ContactGroups = list;
-
-            var task = Task.Run(() => xeroAPI_A.CreateContactGroupAsync(AccessToken, TenantID, header));
-            task.Wait();
-            if (task.Result._ContactGroups.Count > 0)
+            try
             {
-                return task.Result._ContactGroups[0];
+                var list = new List<Xero.NetStandard.OAuth2.Model.Accounting.ContactGroup>();
+                list.Add(record);
+
+                var header = new Xero.NetStandard.OAuth2.Model.Accounting.ContactGroups();
+                header._ContactGroups = list;
+
+                var task = Task.Run(() => xeroAPI_A.CreateContactGroupAsync(AccessToken, TenantID, header));
+                task.Wait();
+                if (task.Result._ContactGroups.Count > 0)
+                {
+                    return task.Result._ContactGroups[0];
+                }
             }
+            catch (Exception ex)
+            {
+                var er = ex.InnerException as Xero.NetStandard.OAuth2.Client.ApiException;
+                throw new Xero.NetStandard.OAuth2.Client.ApiException(er.ErrorCode, er.Message, er.ErrorContent);
+            }
+
             return null;
         }
         /// <summary>
@@ -720,22 +952,30 @@ namespace XeroAuth2API
             {
                 throw new ArgumentNullException("Missing Contact Group Records ");
             }
-
-            var header = new Xero.NetStandard.OAuth2.Model.Accounting.ContactGroups();
-            header._ContactGroups = records;
-
-            var task = Task.Run(() => xeroAPI_A.CreateContactGroupAsync(AccessToken, TenantID, header));
-            task.Wait();
-            if (task.Result._ContactGroups.Count > 0)
+            try
             {
-                return task.Result._ContactGroups;
+                var header = new Xero.NetStandard.OAuth2.Model.Accounting.ContactGroups();
+                header._ContactGroups = records;
+
+                var task = Task.Run(() => xeroAPI_A.CreateContactGroupAsync(AccessToken, TenantID, header));
+                task.Wait();
+                if (task.Result._ContactGroups.Count > 0)
+                {
+                    return task.Result._ContactGroups;
+                }
             }
+            catch (Exception ex)
+            {
+                var er = ex.InnerException as Xero.NetStandard.OAuth2.Client.ApiException;
+                throw new Xero.NetStandard.OAuth2.Client.ApiException(er.ErrorCode, er.Message, er.ErrorContent);
+            }
+
             return null;
         }
         /// <summary>
         /// Delete a contact from a Contact Group
         /// </summary>
-        /// <param name="ContactGroupID">Group ID</param>
+        /// <param name="ContactGroupID">Unique identifier for the record</param>
         /// <param name="ContactID">Contact ID</param>
         /// <returns></returns>
         public bool DeleteContactGroupContact(Guid ContactGroupID, Guid ContactID)
@@ -744,14 +984,21 @@ namespace XeroAuth2API
             {
                 throw new ArgumentNullException("Missing Contact Group ID or ContactID");
             }
-
-            var task = Task.Run(() => xeroAPI_A.DeleteContactGroupContactAsync(AccessToken, TenantID, ContactGroupID, ContactID));
-
-            task.Wait();
-            if (task.IsCompleted)
+            try
             {
-                return true;
+                var task = Task.Run(() => xeroAPI_A.DeleteContactGroupContactAsync(AccessToken, TenantID, ContactGroupID, ContactID));
+                task.Wait();
+                if (task.IsCompleted)
+                {
+                    return true;
+                }
             }
+            catch (Exception ex)
+            {
+                var er = ex.InnerException as Xero.NetStandard.OAuth2.Client.ApiException;
+                throw new Xero.NetStandard.OAuth2.Client.ApiException(er.ErrorCode, er.Message, er.ErrorContent);
+            }
+
 
             return false;
         }
@@ -766,18 +1013,25 @@ namespace XeroAuth2API
             {
                 throw new ArgumentNullException("Missing Contact Group ID ");
             }
-            var task = Task.Run(() => xeroAPI_A.DeleteContactGroupContactsAsync(AccessToken, TenantID, ContactGroupID));
-
-            task.Wait();
-            if (task.IsCompleted)
+            try
             {
-                return true;
+                var task = Task.Run(() => xeroAPI_A.DeleteContactGroupContactsAsync(AccessToken, TenantID, ContactGroupID));
+                task.Wait();
+                if (task.IsCompleted)
+                {
+                    return true;
+                }
             }
+            catch (Exception ex)
+            {
+                var er = ex.InnerException as Xero.NetStandard.OAuth2.Client.ApiException;
+                throw new Xero.NetStandard.OAuth2.Client.ApiException(er.ErrorCode, er.Message, er.ErrorContent);
+            }
+
 
             return false;
         }
         #endregion
-
 
 
 
@@ -799,31 +1053,39 @@ namespace XeroAuth2API
             {
                 page = onlypage.Value;
             }
-
-            var records = new List<Xero.NetStandard.OAuth2.Model.Accounting.CreditNote>(); // Hold the records
-            int count = 100; // This is how many per page - setting this will ensure we check for the first page is a full 100 and loop until all returned            // If onlypage is set then the client only wants that page of records so stop processing
-            while (count == 100)
+            try
             {
-                var task = Task.Run(() => xeroAPI_A.GetCreditNotesAsync(AccessToken, TenantID, ModifiedSince, filter, order, page++, unitdp));
-                task.Wait();
-                records.AddRange(task.Result._CreditNotes); // Add the next page records returned
-                count = task.Result._CreditNotes.Count; // Record the number of records returned in this page. if less than 100 then the loop will exit otherwise get the next page full
-                if (onlypage.HasValue)
+                var records = new List<Xero.NetStandard.OAuth2.Model.Accounting.CreditNote>(); // Hold the records
+                int count = 100; // This is how many per page - setting this will ensure we check for the first page is a full 100 and loop until all returned            // If onlypage is set then the client only wants that page of records so stop processing
+                while (count == 100)
                 {
-                    count = -1;
+                    var task = Task.Run(() => xeroAPI_A.GetCreditNotesAsync(AccessToken, TenantID, ModifiedSince, filter, order, page++, unitdp));
+                    task.Wait();
+                    records.AddRange(task.Result._CreditNotes); // Add the next page records returned
+                    count = task.Result._CreditNotes.Count; // Record the number of records returned in this page. if less than 100 then the loop will exit otherwise get the next page full
+                    if (onlypage.HasValue)
+                    {
+                        count = -1;
+                    }
+                }
+
+                if (records.Count > 0)
+                {
+                    return records;
                 }
             }
-
-            if (records.Count > 0)
+            catch (Exception ex)
             {
-                return records;
+                var er = ex.InnerException as Xero.NetStandard.OAuth2.Client.ApiException;
+                throw new Xero.NetStandard.OAuth2.Client.ApiException(er.ErrorCode, er.Message, er.ErrorContent);
             }
+
             return null;
         }
         /// <summary>
         /// Return a single Credit Note
         /// </summary>
-        /// <param name="creditNoteID">Unique identifier for a Credit Note</param>
+        /// <param name="creditNoteID">Unique identifier for the record</param>
         /// <param name="unitdp">(Unit Decimal Places) You can opt in to use four decimal places for unit amounts (optional)</param>
         /// <returns>Single Credit Note Record</returns>
         public Xero.NetStandard.OAuth2.Model.Accounting.CreditNote CreditNote(Guid creditNoteID, int? unitdp = null)
@@ -832,12 +1094,21 @@ namespace XeroAuth2API
             {
                 throw new ArgumentNullException("Missing Credit Note ID");
             }
-            var task = Task.Run(() => xeroAPI_A.GetCreditNoteAsync(AccessToken, TenantID, creditNoteID, unitdp));
-            task.Wait();
-            if (task.Result._CreditNotes.Count > 0)
+            try
             {
-                return task.Result._CreditNotes[0];
+                var task = Task.Run(() => xeroAPI_A.GetCreditNoteAsync(AccessToken, TenantID, creditNoteID, unitdp));
+                task.Wait();
+                if (task.Result._CreditNotes.Count > 0)
+                {
+                    return task.Result._CreditNotes[0];
+                }
             }
+            catch (Exception ex)
+            {
+                var er = ex.InnerException as Xero.NetStandard.OAuth2.Client.ApiException;
+                throw new Xero.NetStandard.OAuth2.Client.ApiException(er.ErrorCode, er.Message, er.ErrorContent);
+            }
+
             return null;
         }
         /// <summary>
@@ -852,18 +1123,27 @@ namespace XeroAuth2API
             {
                 throw new ArgumentNullException("Missing Credit Note Record");
             }
-            var list = new List<Xero.NetStandard.OAuth2.Model.Accounting.CreditNote>();
-            list.Add(record);
-
-            var header = new Xero.NetStandard.OAuth2.Model.Accounting.CreditNotes();
-            header._CreditNotes = list;
-
-            var task = Task.Run(() => xeroAPI_A.CreateCreditNotesAsync(AccessToken, TenantID, header, null, unitdp));
-            task.Wait();
-            if (task.Result._CreditNotes.Count > 0)
+            try
             {
-                return task.Result._CreditNotes[0];
+                var list = new List<Xero.NetStandard.OAuth2.Model.Accounting.CreditNote>();
+                list.Add(record);
+
+                var header = new Xero.NetStandard.OAuth2.Model.Accounting.CreditNotes();
+                header._CreditNotes = list;
+
+                var task = Task.Run(() => xeroAPI_A.CreateCreditNotesAsync(AccessToken, TenantID, header, null, unitdp));
+                task.Wait();
+                if (task.Result._CreditNotes.Count > 0)
+                {
+                    return task.Result._CreditNotes[0];
+                }
             }
+            catch (Exception ex)
+            {
+                var er = ex.InnerException as Xero.NetStandard.OAuth2.Client.ApiException;
+                throw new Xero.NetStandard.OAuth2.Client.ApiException(er.ErrorCode, er.Message, er.ErrorContent);
+            }
+
             return null;
         }
         /// <summary>
@@ -878,22 +1158,31 @@ namespace XeroAuth2API
             {
                 throw new ArgumentNullException("Missing Credit Note");
             }
-
-            var list = new List<Xero.NetStandard.OAuth2.Model.Accounting.CreditNote>();
-            list.Add(record);
-
-            var header = new Xero.NetStandard.OAuth2.Model.Accounting.CreditNotes();
-            header._CreditNotes = list;
-
-            var task = Task.Run(() => xeroAPI_A.UpdateCreditNoteAsync(AccessToken, TenantID, record.CreditNoteID.Value, header));
-            task.Wait();
-            if (task.Result._CreditNotes.Count > 0)
+            try
             {
-                return task.Result._CreditNotes[0];
+                var list = new List<Xero.NetStandard.OAuth2.Model.Accounting.CreditNote>();
+                list.Add(record);
+
+                var header = new Xero.NetStandard.OAuth2.Model.Accounting.CreditNotes();
+                header._CreditNotes = list;
+
+                var task = Task.Run(() => xeroAPI_A.UpdateCreditNoteAsync(AccessToken, TenantID, record.CreditNoteID.Value, header));
+                task.Wait();
+                if (task.Result._CreditNotes.Count > 0)
+                {
+                    return task.Result._CreditNotes[0];
+                }
             }
+            catch (Exception ex)
+            {
+                var er = ex.InnerException as Xero.NetStandard.OAuth2.Client.ApiException;
+                throw new Xero.NetStandard.OAuth2.Client.ApiException(er.ErrorCode, er.Message, er.ErrorContent);
+            }
+
             return null;
         }
         #endregion
+
 
 
 
@@ -906,12 +1195,21 @@ namespace XeroAuth2API
         /// <returns>List of Currency Records</returns>
         public List<Xero.NetStandard.OAuth2.Model.Accounting.Currency> Currencies(string filter = null, string order = null)
         {
-            var task = Task.Run(() => xeroAPI_A.GetCurrenciesAsync(AccessToken, TenantID, filter, order));
-            task.Wait();
-            if (task.Result._Currencies.Count > 0)
+            try
             {
-                return task.Result._Currencies;
+                var task = Task.Run(() => xeroAPI_A.GetCurrenciesAsync(AccessToken, TenantID, filter, order));
+                task.Wait();
+                if (task.Result._Currencies.Count > 0)
+                {
+                    return task.Result._Currencies;
+                }
             }
+            catch (Exception ex)
+            {
+                var er = ex.InnerException as Xero.NetStandard.OAuth2.Client.ApiException;
+                throw new Xero.NetStandard.OAuth2.Client.ApiException(er.ErrorCode, er.Message, er.ErrorContent);
+            }
+
             return null;
         }
         /// <summary>
@@ -921,15 +1219,25 @@ namespace XeroAuth2API
         /// <returns>The Created Currency Record</returns>
         public Xero.NetStandard.OAuth2.Model.Accounting.Currency CreateCurrency(Xero.NetStandard.OAuth2.Model.Accounting.Currency record)
         {
-            var task = Task.Run(() => xeroAPI_A.CreateCurrencyAsync(AccessToken, TenantID, record));
-            task.Wait();
-            if (task.Result._Currencies.Count > 0)
+            try
             {
-                return task.Result._Currencies[0];
+                var task = Task.Run(() => xeroAPI_A.CreateCurrencyAsync(AccessToken, TenantID, record));
+                task.Wait();
+                if (task.Result._Currencies.Count > 0)
+                {
+                    return task.Result._Currencies[0];
+                }
             }
+            catch (Exception ex)
+            {
+                var er = ex.InnerException as Xero.NetStandard.OAuth2.Client.ApiException;
+                throw new Xero.NetStandard.OAuth2.Client.ApiException(er.ErrorCode, er.Message, er.ErrorContent);
+            }
+
             return null;
         }
         #endregion
+
 
 
 
@@ -937,6 +1245,7 @@ namespace XeroAuth2API
         //TODO Added History 
 
         #endregion
+
 
 
 
@@ -964,31 +1273,39 @@ namespace XeroAuth2API
             {
                 page = onlypage.Value;
             }
-
-            var records = new List<Xero.NetStandard.OAuth2.Model.Accounting.Invoice>(); // Hold the records
-            int count = 100; // This is how many per page - setting this will ensure we check for the first page is a full 100 and loop until all returned            // If onlypage is set then the client only wants that page of records so stop processing
-            while (count == 100)
+            try
             {
-                var task = Task.Run(() => xeroAPI_A.GetInvoicesAsync(AccessToken, TenantID, ModifiedSince, filter, order, iDs, invoiceNumbers, contactIDs, statuses, page++, includeArchived, createdByMyApp, unitdp));
-                task.Wait();
-                records.AddRange(task.Result._Invoices); // Add the next page records returned
-                count = task.Result._Invoices.Count; // Record the number of records returned in this page. if less than 100 then the loop will exit otherwise get the next page full
-                if (onlypage.HasValue)
+                var records = new List<Xero.NetStandard.OAuth2.Model.Accounting.Invoice>(); // Hold the records
+                int count = 100; // This is how many per page - setting this will ensure we check for the first page is a full 100 and loop until all returned      
+                while (count == 100)
                 {
-                    count = -1;
+                    var task = Task.Run(() => xeroAPI_A.GetInvoicesAsync(AccessToken, TenantID, ModifiedSince, filter, order, iDs, invoiceNumbers, contactIDs, statuses, page++, includeArchived, createdByMyApp, unitdp));
+                    task.Wait();
+                    records.AddRange(task.Result._Invoices); // Add the next page records returned
+                    count = task.Result._Invoices.Count; // Record the number of records returned in this page. if less than 100 then the loop will exit otherwise get the next page full
+                    if (onlypage.HasValue)
+                    {
+                        count = -1;
+                    }
+                }
+
+                if (records.Count > 0)
+                {
+                    return records;
                 }
             }
-
-            if (records.Count > 0)
+            catch (Exception ex)
             {
-                return records;
+                var er = ex.InnerException as Xero.NetStandard.OAuth2.Client.ApiException;
+                throw new Xero.NetStandard.OAuth2.Client.ApiException(er.ErrorCode, er.Message, er.ErrorContent);
             }
+
             return null;
         }
         /// <summary>
         /// Return a single Invoice Record 
         /// </summary>
-        /// <param name="invoiceID">Unique identifier for an Invoice</param>
+        /// <param name="invoiceID">Unique identifier for the record</param>
         /// <param name="unitdp">(Unit Decimal Places) You can opt in to use four decimal places for unit amounts (optional)</param>
         /// <returns></returns>
         public Xero.NetStandard.OAuth2.Model.Accounting.Invoice Invoice(Guid invoiceID, int? unitdp = null)
@@ -997,12 +1314,21 @@ namespace XeroAuth2API
             {
                 throw new ArgumentNullException("Missing InvoiceID");
             }
-            var task = Task.Run(() => xeroAPI_A.GetInvoiceAsync(AccessToken, TenantID, invoiceID, unitdp));
-            task.Wait();
-            if (task.Result._Invoices.Count > 0)
+            try
             {
-                return task.Result._Invoices[0];
+                var task = Task.Run(() => xeroAPI_A.GetInvoiceAsync(AccessToken, TenantID, invoiceID, unitdp));
+                task.Wait();
+                if (task.Result._Invoices.Count > 0)
+                {
+                    return task.Result._Invoices[0];
+                }
             }
+            catch (Exception ex)
+            {
+                var er = ex.InnerException as Xero.NetStandard.OAuth2.Client.ApiException;
+                throw new Xero.NetStandard.OAuth2.Client.ApiException(er.ErrorCode, er.Message, er.ErrorContent);
+            }
+
             return null;
         }
         /// <summary>
@@ -1017,18 +1343,27 @@ namespace XeroAuth2API
             {
                 throw new ArgumentNullException("Missing Invoice Record");
             }
-            var list = new List<Xero.NetStandard.OAuth2.Model.Accounting.Invoice>();
-            list.Add(record);
-
-            var header = new Xero.NetStandard.OAuth2.Model.Accounting.Invoices();
-            header._Invoices = list;
-
-            var task = Task.Run(() => xeroAPI_A.CreateInvoicesAsync(AccessToken, TenantID, header, null, unitdp));
-            task.Wait();
-            if (task.Result._Invoices.Count > 0)
+            try
             {
-                return task.Result._Invoices[0];
+                var list = new List<Xero.NetStandard.OAuth2.Model.Accounting.Invoice>();
+                list.Add(record);
+
+                var header = new Xero.NetStandard.OAuth2.Model.Accounting.Invoices();
+                header._Invoices = list;
+
+                var task = Task.Run(() => xeroAPI_A.CreateInvoicesAsync(AccessToken, TenantID, header, null, unitdp));
+                task.Wait();
+                if (task.Result._Invoices.Count > 0)
+                {
+                    return task.Result._Invoices[0];
+                }
             }
+            catch (Exception ex)
+            {
+                var er = ex.InnerException as Xero.NetStandard.OAuth2.Client.ApiException;
+                throw new Xero.NetStandard.OAuth2.Client.ApiException(er.ErrorCode, er.Message, er.ErrorContent);
+            }
+
             return null;
         }
         /// <summary>
@@ -1042,15 +1377,24 @@ namespace XeroAuth2API
             {
                 throw new ArgumentNullException("Missing Invoice Records ");
             }
-            var header = new Xero.NetStandard.OAuth2.Model.Accounting.Invoices();
-            header._Invoices = records;
-
-            var task = Task.Run(() => xeroAPI_A.CreateInvoicesAsync(AccessToken, TenantID, header, null, unitdp));
-            task.Wait();
-            if (task.Result._Invoices.Count > 0)
+            try
             {
-                return task.Result._Invoices;
+                var header = new Xero.NetStandard.OAuth2.Model.Accounting.Invoices();
+                header._Invoices = records;
+
+                var task = Task.Run(() => xeroAPI_A.CreateInvoicesAsync(AccessToken, TenantID, header, null, unitdp));
+                task.Wait();
+                if (task.Result._Invoices.Count > 0)
+                {
+                    return task.Result._Invoices;
+                }
             }
+            catch (Exception ex)
+            {
+                var er = ex.InnerException as Xero.NetStandard.OAuth2.Client.ApiException;
+                throw new Xero.NetStandard.OAuth2.Client.ApiException(er.ErrorCode, er.Message, er.ErrorContent);
+            }
+
             return null;
         }
         /// <summary>
@@ -1064,19 +1408,27 @@ namespace XeroAuth2API
             {
                 throw new ArgumentNullException("Missing Invoice");
             }
-
-            var list = new List<Xero.NetStandard.OAuth2.Model.Accounting.Invoice>();
-            list.Add(record);
-
-            var header = new Xero.NetStandard.OAuth2.Model.Accounting.Invoices();
-            header._Invoices = list;
-
-            var task = Task.Run(() => xeroAPI_A.UpdateInvoiceAsync(AccessToken, TenantID, record.InvoiceID.Value, header));
-            task.Wait();
-            if (task.Result._Invoices.Count > 0)
+            try
             {
-                return task.Result._Invoices[0];
+                var list = new List<Xero.NetStandard.OAuth2.Model.Accounting.Invoice>();
+                list.Add(record);
+
+                var header = new Xero.NetStandard.OAuth2.Model.Accounting.Invoices();
+                header._Invoices = list;
+
+                var task = Task.Run(() => xeroAPI_A.UpdateInvoiceAsync(AccessToken, TenantID, record.InvoiceID.Value, header));
+                task.Wait();
+                if (task.Result._Invoices.Count > 0)
+                {
+                    return task.Result._Invoices[0];
+                }
             }
+            catch (Exception ex)
+            {
+                var er = ex.InnerException as Xero.NetStandard.OAuth2.Client.ApiException;
+                throw new Xero.NetStandard.OAuth2.Client.ApiException(er.ErrorCode, er.Message, er.ErrorContent);
+            }
+
             return null;
         }
 
@@ -1096,18 +1448,27 @@ namespace XeroAuth2API
         /// <returns>List of Items / Products</returns>
         public List<Xero.NetStandard.OAuth2.Model.Accounting.Item> Items(string filter = null, string order = null, int? unitdp = null, DateTime? ModifiedSince = null)
         {
-            var task = Task.Run(() => xeroAPI_A.GetItemsAsync(AccessToken, TenantID, ModifiedSince, filter, order, unitdp));
-            task.Wait();
-            if (task.Result._Items.Count > 0)
+            try
             {
-                return task.Result._Items;
+                var task = Task.Run(() => xeroAPI_A.GetItemsAsync(AccessToken, TenantID, ModifiedSince, filter, order, unitdp));
+                task.Wait();
+                if (task.Result._Items.Count > 0)
+                {
+                    return task.Result._Items;
+                }
             }
+            catch (Exception ex)
+            {
+                var er = ex.InnerException as Xero.NetStandard.OAuth2.Client.ApiException;
+                throw new Xero.NetStandard.OAuth2.Client.ApiException(er.ErrorCode, er.Message, er.ErrorContent);
+            }
+
             return null;
         }
         /// <summary>
         /// Return a single Item/Product
         /// </summary>
-        /// <param name="itemID">Item ID</param>
+        /// <param name="itemID">Unique identifier for the record</param>
         /// <param name="unitdp">(Unit Decimal Places) You can opt in to use four decimal places for unit amounts (optional)</param>        
         /// <returns>Item Record</returns>
         public Xero.NetStandard.OAuth2.Model.Accounting.Item Item(Guid itemID, int? unitdp = null)
@@ -1116,12 +1477,21 @@ namespace XeroAuth2API
             {
                 throw new ArgumentNullException("Missing Item ID");
             }
-            var task = Task.Run(() => xeroAPI_A.GetItemAsync(AccessToken, TenantID, itemID, unitdp));
-            task.Wait();
-            if (task.Result._Items.Count > 0)
+            try
             {
-                return task.Result._Items[0];
+                var task = Task.Run(() => xeroAPI_A.GetItemAsync(AccessToken, TenantID, itemID, unitdp));
+                task.Wait();
+                if (task.Result._Items.Count > 0)
+                {
+                    return task.Result._Items[0];
+                }
             }
+            catch (Exception ex)
+            {
+                var er = ex.InnerException as Xero.NetStandard.OAuth2.Client.ApiException;
+                throw new Xero.NetStandard.OAuth2.Client.ApiException(er.ErrorCode, er.Message, er.ErrorContent);
+            }
+
             return null;
         }
         /// <summary>
@@ -1136,19 +1506,27 @@ namespace XeroAuth2API
             {
                 throw new ArgumentNullException("Missing Item");
             }
-
-            var list = new List<Xero.NetStandard.OAuth2.Model.Accounting.Item>();
-            list.Add(record);
-
-            var header = new Xero.NetStandard.OAuth2.Model.Accounting.Items();
-            header._Items = list;
-
-            var task = Task.Run(() => xeroAPI_A.UpdateItemAsync(AccessToken, TenantID, record.ItemID.Value, header, unitdp));
-            task.Wait();
-            if (task.Result._Items.Count > 0)
+            try
             {
-                return task.Result._Items[0];
+                var list = new List<Xero.NetStandard.OAuth2.Model.Accounting.Item>();
+                list.Add(record);
+
+                var header = new Xero.NetStandard.OAuth2.Model.Accounting.Items();
+                header._Items = list;
+
+                var task = Task.Run(() => xeroAPI_A.UpdateItemAsync(AccessToken, TenantID, record.ItemID.Value, header, unitdp));
+                task.Wait();
+                if (task.Result._Items.Count > 0)
+                {
+                    return task.Result._Items[0];
+                }
             }
+            catch (Exception ex)
+            {
+                var er = ex.InnerException as Xero.NetStandard.OAuth2.Client.ApiException;
+                throw new Xero.NetStandard.OAuth2.Client.ApiException(er.ErrorCode, er.Message, er.ErrorContent);
+            }
+
             return null;
         }
         /// <summary>
@@ -1163,19 +1541,27 @@ namespace XeroAuth2API
             {
                 throw new ArgumentNullException("Missing Item record");
             }
-
-            var list = new List<Xero.NetStandard.OAuth2.Model.Accounting.Item>();
-            list.Add(record);
-
-            var header = new Xero.NetStandard.OAuth2.Model.Accounting.Items();
-            header._Items = list;
-
-            var task = Task.Run(() => xeroAPI_A.CreateItemsAsync(AccessToken, TenantID, header, null, unitdp));
-            task.Wait();
-            if (task.Result._Items.Count > 0)
+            try
             {
-                return task.Result._Items[0];
+                var list = new List<Xero.NetStandard.OAuth2.Model.Accounting.Item>();
+                list.Add(record);
+
+                var header = new Xero.NetStandard.OAuth2.Model.Accounting.Items();
+                header._Items = list;
+
+                var task = Task.Run(() => xeroAPI_A.CreateItemsAsync(AccessToken, TenantID, header, null, unitdp));
+                task.Wait();
+                if (task.Result._Items.Count > 0)
+                {
+                    return task.Result._Items[0];
+                }
             }
+            catch (Exception ex)
+            {
+                var er = ex.InnerException as Xero.NetStandard.OAuth2.Client.ApiException;
+                throw new Xero.NetStandard.OAuth2.Client.ApiException(er.ErrorCode, er.Message, er.ErrorContent);
+            }
+
             return null;
         }
         /// <summary>
@@ -1190,22 +1576,30 @@ namespace XeroAuth2API
             {
                 throw new ArgumentNullException("Missing Item records");
             }
-
-            var header = new Xero.NetStandard.OAuth2.Model.Accounting.Items();
-            header._Items = records;
-
-            var task = Task.Run(() => xeroAPI_A.CreateItemsAsync(AccessToken, TenantID, header, null, unitdp));
-            task.Wait();
-            if (task.Result._Items.Count > 0)
+            try
             {
-                return task.Result._Items;
+                var header = new Xero.NetStandard.OAuth2.Model.Accounting.Items();
+                header._Items = records;
+
+                var task = Task.Run(() => xeroAPI_A.CreateItemsAsync(AccessToken, TenantID, header, null, unitdp));
+                task.Wait();
+                if (task.Result._Items.Count > 0)
+                {
+                    return task.Result._Items;
+                }
             }
+            catch (Exception ex)
+            {
+                var er = ex.InnerException as Xero.NetStandard.OAuth2.Client.ApiException;
+                throw new Xero.NetStandard.OAuth2.Client.ApiException(er.ErrorCode, er.Message, er.ErrorContent);
+            }
+
             return null;
         }
         /// <summary>
         /// Delete an Item/Product
         /// </summary>
-        /// <param name="itemID">Item ID</param>
+        /// <param name="itemID">Unique identifier for the record</param>
         /// <returns></returns>
         public bool DeleteItem(Guid itemID)
         {
@@ -1213,12 +1607,19 @@ namespace XeroAuth2API
             {
                 throw new ArgumentNullException("Missing Item ID");
             }
-
-            var task = Task.Run(() => xeroAPI_A.DeleteItemAsync(AccessToken, TenantID, itemID));
-            task.Wait();
-            if (task.IsCompleted)
+            try
             {
-                return true;
+                var task = Task.Run(() => xeroAPI_A.DeleteItemAsync(AccessToken, TenantID, itemID));
+                task.Wait();
+                if (task.IsCompleted)
+                {
+                    return true;
+                }
+            }
+            catch (Exception ex)
+            {
+                var er = ex.InnerException as Xero.NetStandard.OAuth2.Client.ApiException;
+                throw new Xero.NetStandard.OAuth2.Client.ApiException(er.ErrorCode, er.Message, er.ErrorContent);
             }
 
             return false;
@@ -1238,12 +1639,21 @@ namespace XeroAuth2API
         /// <returns>List of Journal Records</returns>
         public List<Xero.NetStandard.OAuth2.Model.Accounting.Journal> Journals(DateTime? ModifiedSince = null, int? offset = null, bool? paymentsOnly = null)
         {
-            var task = Task.Run(() => xeroAPI_A.GetJournalsAsync(AccessToken, TenantID, ModifiedSince, offset, paymentsOnly));
-            task.Wait();
-            if (task.Result._Journals.Count > 0)
+            try
             {
-                return task.Result._Journals;
+                var task = Task.Run(() => xeroAPI_A.GetJournalsAsync(AccessToken, TenantID, ModifiedSince, offset, paymentsOnly));
+                task.Wait();
+                if (task.Result._Journals.Count > 0)
+                {
+                    return task.Result._Journals;
+                }
             }
+            catch (Exception ex)
+            {
+                var er = ex.InnerException as Xero.NetStandard.OAuth2.Client.ApiException;
+                throw new Xero.NetStandard.OAuth2.Client.ApiException(er.ErrorCode, er.Message, er.ErrorContent);
+            }
+
             return null;
         }
         #endregion
@@ -1258,12 +1668,21 @@ namespace XeroAuth2API
         /// <returns></returns>
         public List<Xero.NetStandard.OAuth2.Model.Accounting.Organisation> Organisations()
         {
-            var task = Task.Run(() => xeroAPI_A.GetOrganisationsAsync(AccessToken, TenantID));
-            task.Wait();
-            if (task.Result._Organisations.Count > 0)
+            try
             {
-                return task.Result._Organisations;
+                var task = Task.Run(() => xeroAPI_A.GetOrganisationsAsync(AccessToken, TenantID));
+                task.Wait();
+                if (task.Result._Organisations.Count > 0)
+                {
+                    return task.Result._Organisations;
+                }
             }
+            catch (Exception ex)
+            {
+                var er = ex.InnerException as Xero.NetStandard.OAuth2.Client.ApiException;
+                throw new Xero.NetStandard.OAuth2.Client.ApiException(er.ErrorCode, er.Message, er.ErrorContent);
+            }
+
             return null;
         }
 
@@ -1294,31 +1713,39 @@ namespace XeroAuth2API
             {
                 page = onlypage.Value;
             }
-
-            var records = new List<Xero.NetStandard.OAuth2.Model.Accounting.Quote>(); // Hold the records
-            int count = 100; // This is how many per page - setting this will ensure we check for the first page is a full 100 and loop until all returned             
-            while (count == 100)
+            try
             {
-                var task = Task.Run(() => xeroAPI_A.GetQuotesAsync(AccessToken, TenantID, ModifiedSince, dateFrom, dateTo, expiryDateFrom, expiryDateTo, contactID, status, page++, order, quoteNumber));
-                task.Wait();
-                records.AddRange(task.Result._Quotes); // Add the next page records returned
-                count = task.Result._Quotes.Count; // Record the number of records returned in this page. if less than 100 then the loop will exit otherwise get the next page full
-                if (onlypage.HasValue)
+                var records = new List<Xero.NetStandard.OAuth2.Model.Accounting.Quote>(); // Hold the records
+                int count = 100; // This is how many per page - setting this will ensure we check for the first page is a full 100 and loop until all returned             
+                while (count == 100)
                 {
-                    count = -1;
+                    var task = Task.Run(() => xeroAPI_A.GetQuotesAsync(AccessToken, TenantID, ModifiedSince, dateFrom, dateTo, expiryDateFrom, expiryDateTo, contactID, status, page++, order, quoteNumber));
+                    task.Wait();
+                    records.AddRange(task.Result._Quotes); // Add the next page records returned
+                    count = task.Result._Quotes.Count; // Record the number of records returned in this page. if less than 100 then the loop will exit otherwise get the next page full
+                    if (onlypage.HasValue)
+                    {
+                        count = -1;
+                    }
+                }
+
+                if (records.Count > 0)
+                {
+                    return records;
                 }
             }
-
-            if (records.Count > 0)
+            catch (Exception ex)
             {
-                return records;
+                var er = ex.InnerException as Xero.NetStandard.OAuth2.Client.ApiException;
+                throw new Xero.NetStandard.OAuth2.Client.ApiException(er.ErrorCode, er.Message, er.ErrorContent);
             }
+
             return null;
         }
         /// <summary>
         /// Retrieve single Quote Record
         /// </summary>
-        /// <param name="quoteID">The Quote ID</param>
+        /// <param name="quoteID">Unique identifier for the record</param>
         /// <returns>Quote Object</returns>
         public Xero.NetStandard.OAuth2.Model.Accounting.Quote Quote(Guid quoteID)
         {
@@ -1326,12 +1753,21 @@ namespace XeroAuth2API
             {
                 throw new ArgumentNullException("Missing QuoteID");
             }
-            var task = Task.Run(() => xeroAPI_A.GetQuoteAsync(AccessToken, TenantID, quoteID));
-            task.Wait();
-            if (task.Result._Quotes.Count > 0)
+            try
             {
-                return task.Result._Quotes[0];
+                var task = Task.Run(() => xeroAPI_A.GetQuoteAsync(AccessToken, TenantID, quoteID));
+                task.Wait();
+                if (task.Result._Quotes.Count > 0)
+                {
+                    return task.Result._Quotes[0];
+                }
             }
+            catch (Exception ex)
+            {
+                var er = ex.InnerException as Xero.NetStandard.OAuth2.Client.ApiException;
+                throw new Xero.NetStandard.OAuth2.Client.ApiException(er.ErrorCode, er.Message, er.ErrorContent);
+            }
+
             return null;
         }
         public Xero.NetStandard.OAuth2.Model.Accounting.Quote CreateQuote(Xero.NetStandard.OAuth2.Model.Accounting.Quote record, int? unitdp = null)
@@ -1340,21 +1776,31 @@ namespace XeroAuth2API
             {
                 throw new ArgumentNullException("Missing Quote Record");
             }
-            var list = new List<Xero.NetStandard.OAuth2.Model.Accounting.Quote>();
-            list.Add(record);
-
-            var header = new Xero.NetStandard.OAuth2.Model.Accounting.Quotes();
-            header._Quotes = list;
-
-            var task = Task.Run(() => xeroAPI_A.CreateQuotesAsync(AccessToken, TenantID, header));
-            task.Wait();
-            if (task.Result._Quotes.Count > 0)
+            try
             {
-                return task.Result._Quotes[0];
+                var list = new List<Xero.NetStandard.OAuth2.Model.Accounting.Quote>();
+                list.Add(record);
+
+                var header = new Xero.NetStandard.OAuth2.Model.Accounting.Quotes();
+                header._Quotes = list;
+
+                var task = Task.Run(() => xeroAPI_A.CreateQuotesAsync(AccessToken, TenantID, header));
+                task.Wait();
+                if (task.Result._Quotes.Count > 0)
+                {
+                    return task.Result._Quotes[0];
+                }
             }
+            catch (Exception ex)
+            {
+                var er = ex.InnerException as Xero.NetStandard.OAuth2.Client.ApiException;
+                throw new Xero.NetStandard.OAuth2.Client.ApiException(er.ErrorCode, er.Message, er.ErrorContent);
+            }
+
             return null;
         }
         #endregion
+
 
 
 
@@ -1368,12 +1814,21 @@ namespace XeroAuth2API
         /// <returns>List of TaxRate Records</returns>
         public List<Xero.NetStandard.OAuth2.Model.Accounting.TaxRate> TaxRates(string filter = null, string order = null, string taxType = null)
         {
-            var task = Task.Run(() => xeroAPI_A.GetTaxRatesAsync(AccessToken, TenantID, filter, order, taxType));
-            task.Wait();
-            if (task.Result._TaxRates.Count > 0)
+            try
             {
-                return task.Result._TaxRates;
+                var task = Task.Run(() => xeroAPI_A.GetTaxRatesAsync(AccessToken, TenantID, filter, order, taxType));
+                task.Wait();
+                if (task.Result._TaxRates.Count > 0)
+                {
+                    return task.Result._TaxRates;
+                }
             }
+            catch (Exception ex)
+            {
+                var er = ex.InnerException as Xero.NetStandard.OAuth2.Client.ApiException;
+                throw new Xero.NetStandard.OAuth2.Client.ApiException(er.ErrorCode, er.Message, er.ErrorContent);
+            }
+
             return null;
         }
         /// <summary>
@@ -1383,12 +1838,21 @@ namespace XeroAuth2API
         /// <returns>TaxRate Record</returns>
         public Xero.NetStandard.OAuth2.Model.Accounting.TaxRate TaxRate(string name)
         {
-            var task = Task.Run(() => xeroAPI_A.GetTaxRatesAsync(AccessToken, TenantID, $"Name =\"{name}\""));
-            task.Wait();
-            if (task.Result._TaxRates.Count > 0)
+            try
             {
-                return task.Result._TaxRates[0];
+                var task = Task.Run(() => xeroAPI_A.GetTaxRatesAsync(AccessToken, TenantID, $"Name =\"{name}\""));
+                task.Wait();
+                if (task.Result._TaxRates.Count > 0)
+                {
+                    return task.Result._TaxRates[0];
+                }
             }
+            catch (Exception ex)
+            {
+                var er = ex.InnerException as Xero.NetStandard.OAuth2.Client.ApiException;
+                throw new Xero.NetStandard.OAuth2.Client.ApiException(er.ErrorCode, er.Message, er.ErrorContent);
+            }
+
             return null;
         }
         /// <summary>
@@ -1402,19 +1866,27 @@ namespace XeroAuth2API
             {
                 throw new ArgumentNullException("Missing TaxRate");
             }
-
-            var list = new List<Xero.NetStandard.OAuth2.Model.Accounting.TaxRate>();
-            list.Add(record);
-
-            var header = new Xero.NetStandard.OAuth2.Model.Accounting.TaxRates();
-            header._TaxRates = list;
-
-            var task = Task.Run(() => xeroAPI_A.CreateTaxRatesAsync(AccessToken, TenantID, header));
-            task.Wait();
-            if (task.Result._TaxRates.Count > 0)
+            try
             {
-                return task.Result._TaxRates[0];
+                var list = new List<Xero.NetStandard.OAuth2.Model.Accounting.TaxRate>();
+                list.Add(record);
+
+                var header = new Xero.NetStandard.OAuth2.Model.Accounting.TaxRates();
+                header._TaxRates = list;
+
+                var task = Task.Run(() => xeroAPI_A.CreateTaxRatesAsync(AccessToken, TenantID, header));
+                task.Wait();
+                if (task.Result._TaxRates.Count > 0)
+                {
+                    return task.Result._TaxRates[0];
+                }
             }
+            catch (Exception ex)
+            {
+                var er = ex.InnerException as Xero.NetStandard.OAuth2.Client.ApiException;
+                throw new Xero.NetStandard.OAuth2.Client.ApiException(er.ErrorCode, er.Message, er.ErrorContent);
+            }
+
             return null;
         }
         /// <summary>
@@ -1428,16 +1900,24 @@ namespace XeroAuth2API
             {
                 throw new ArgumentNullException("Missing TaxRate Records");
             }
-
-            var header = new Xero.NetStandard.OAuth2.Model.Accounting.TaxRates();
-            header._TaxRates = records;
-
-            var task = Task.Run(() => xeroAPI_A.CreateTaxRatesAsync(AccessToken, TenantID, header));
-            task.Wait();
-            if (task.Result._TaxRates.Count > 0)
+            try
             {
-                return task.Result._TaxRates;
+                var header = new Xero.NetStandard.OAuth2.Model.Accounting.TaxRates();
+                header._TaxRates = records;
+
+                var task = Task.Run(() => xeroAPI_A.CreateTaxRatesAsync(AccessToken, TenantID, header));
+                task.Wait();
+                if (task.Result._TaxRates.Count > 0)
+                {
+                    return task.Result._TaxRates;
+                }
             }
+            catch (Exception ex)
+            {
+                var er = ex.InnerException as Xero.NetStandard.OAuth2.Client.ApiException;
+                throw new Xero.NetStandard.OAuth2.Client.ApiException(er.ErrorCode, er.Message, er.ErrorContent);
+            }
+
             return null;
         }
         /// <summary>
@@ -1451,19 +1931,27 @@ namespace XeroAuth2API
             {
                 throw new ArgumentNullException("Missing TaxRate");
             }
-
-            var list = new List<Xero.NetStandard.OAuth2.Model.Accounting.TaxRate>();
-            list.Add(record);
-
-            var header = new Xero.NetStandard.OAuth2.Model.Accounting.TaxRates();
-            header._TaxRates = list;
-
-            var task = Task.Run(() => xeroAPI_A.UpdateTaxRateAsync(AccessToken, TenantID, header));
-            task.Wait();
-            if (task.Result._TaxRates.Count > 0)
+            try
             {
-                return task.Result._TaxRates[0];
+                var list = new List<Xero.NetStandard.OAuth2.Model.Accounting.TaxRate>();
+                list.Add(record);
+
+                var header = new Xero.NetStandard.OAuth2.Model.Accounting.TaxRates();
+                header._TaxRates = list;
+
+                var task = Task.Run(() => xeroAPI_A.UpdateTaxRateAsync(AccessToken, TenantID, header));
+                task.Wait();
+                if (task.Result._TaxRates.Count > 0)
+                {
+                    return task.Result._TaxRates[0];
+                }
             }
+            catch (Exception ex)
+            {
+                var er = ex.InnerException as Xero.NetStandard.OAuth2.Client.ApiException;
+                throw new Xero.NetStandard.OAuth2.Client.ApiException(er.ErrorCode, er.Message, er.ErrorContent);
+            }
+
             return null;
         }
         /// <summary>
@@ -1477,16 +1965,24 @@ namespace XeroAuth2API
             {
                 throw new ArgumentNullException("Missing TaxRate Records");
             }
-
-            var header = new Xero.NetStandard.OAuth2.Model.Accounting.TaxRates();
-            header._TaxRates = records;
-
-            var task = Task.Run(() => xeroAPI_A.UpdateTaxRateAsync(AccessToken, TenantID, header));
-            task.Wait();
-            if (task.Result._TaxRates.Count > 0)
+            try
             {
-                return task.Result._TaxRates;
+                var header = new Xero.NetStandard.OAuth2.Model.Accounting.TaxRates();
+                header._TaxRates = records;
+
+                var task = Task.Run(() => xeroAPI_A.UpdateTaxRateAsync(AccessToken, TenantID, header));
+                task.Wait();
+                if (task.Result._TaxRates.Count > 0)
+                {
+                    return task.Result._TaxRates;
+                }
             }
+            catch (Exception ex)
+            {
+                var er = ex.InnerException as Xero.NetStandard.OAuth2.Client.ApiException;
+                throw new Xero.NetStandard.OAuth2.Client.ApiException(er.ErrorCode, er.Message, er.ErrorContent);
+            }
+
             return null;
         }
         #endregion
@@ -1504,27 +2000,45 @@ namespace XeroAuth2API
         /// <returns>List of TrackingCategory Records</returns>
         public List<Xero.NetStandard.OAuth2.Model.Accounting.TrackingCategory> TrackingCategories(string filter = null, string order = null, bool? includeArchived = null)
         {
-            var task = Task.Run(() => xeroAPI_A.GetTrackingCategoriesAsync(AccessToken, TenantID, filter, order, includeArchived));
-            task.Wait();
-            if (task.Result._TrackingCategories.Count > 0)
+            try
             {
-                return task.Result._TrackingCategories;
+                var task = Task.Run(() => xeroAPI_A.GetTrackingCategoriesAsync(AccessToken, TenantID, filter, order, includeArchived));
+                task.Wait();
+                if (task.Result._TrackingCategories.Count > 0)
+                {
+                    return task.Result._TrackingCategories;
+                }
             }
+            catch (Exception ex)
+            {
+                var er = ex.InnerException as Xero.NetStandard.OAuth2.Client.ApiException;
+                throw new Xero.NetStandard.OAuth2.Client.ApiException(er.ErrorCode, er.Message, er.ErrorContent);
+            }
+
             return null;
         }
         /// <summary>
         /// Return a single TrackingCategory Record
         /// </summary>
-        /// <param name="trackingCategoryID">ID of the record</param>
+        /// <param name="trackingCategoryID">Unique identifier for the record</param>
         /// <returns>TrackingCategory Record</returns>
         public Xero.NetStandard.OAuth2.Model.Accounting.TrackingCategory TrackingCategory(Guid trackingCategoryID)
         {
-            var task = Task.Run(() => xeroAPI_A.GetTrackingCategoryAsync(AccessToken, TenantID, trackingCategoryID));
-            task.Wait();
-            if (task.Result._TrackingCategories.Count > 0)
+            try
             {
-                return task.Result._TrackingCategories[0];
+                var task = Task.Run(() => xeroAPI_A.GetTrackingCategoryAsync(AccessToken, TenantID, trackingCategoryID));
+                task.Wait();
+                if (task.Result._TrackingCategories.Count > 0)
+                {
+                    return task.Result._TrackingCategories[0];
+                }
             }
+            catch (Exception ex)
+            {
+                var er = ex.InnerException as Xero.NetStandard.OAuth2.Client.ApiException;
+                throw new Xero.NetStandard.OAuth2.Client.ApiException(er.ErrorCode, er.Message, er.ErrorContent);
+            }
+
             return null;
         }
         #endregion
@@ -1542,14 +2056,178 @@ namespace XeroAuth2API
         /// <returns>List of User Records</returns>
         public List<Xero.NetStandard.OAuth2.Model.Accounting.User> Users(string filter = null, DateTime? ModifiedSince = null, string order = null)
         {
-            var task = Task.Run(() => xeroAPI_A.GetUsersAsync(AccessToken, TenantID, ModifiedSince,filter, order));
-            task.Wait();
-            if (task.Result._Users.Count > 0)
+            try
             {
-                return task.Result._Users;
+                var task = Task.Run(() => xeroAPI_A.GetUsersAsync(AccessToken, TenantID, ModifiedSince, filter, order));
+                task.Wait();
+                if (task.Result._Users.Count > 0)
+                {
+                    return task.Result._Users;
+                }
+            }
+            catch (Exception ex)
+            {
+                var er = ex.InnerException as Xero.NetStandard.OAuth2.Client.ApiException;
+                throw new Xero.NetStandard.OAuth2.Client.ApiException(er.ErrorCode, er.Message, er.ErrorContent);
+            }
+
+            return null;
+        }
+        #endregion
+
+
+
+
+
+        #region Purchase Orders
+        /// <summary>
+        /// Return a list or PurchaseOrders
+        /// </summary>
+        /// <param name="onlypage">Up to 100 records will be returned in a single API call with line items details (optional)</param>
+        /// <param name="status">Filter by purchase order status (optional)</param>
+        /// <param name="ModifiedSince">Only records created or modified since this timestamp will be returned (optional)</param>
+        /// <param name="dateFrom">Filter by purchase order date (e.g. GET https://.../PurchaseOrders?DateFrom&#x3D;2015-12-01&amp;DateTo&#x3D;2015-12-31 (optional)</param>
+        /// <param name="dateTo">Filter by purchase order date (e.g. GET https://.../PurchaseOrders?DateFrom&#x3D;2015-12-01&amp;DateTo&#x3D;2015-12-31 (optional)</param>
+        /// <param name="order">Order by an any element (optional)</param>
+        /// <returns>List of Purchase Orders</returns>
+        public List<Xero.NetStandard.OAuth2.Model.Accounting.PurchaseOrder> PurchaseOrders(int? onlypage = null, string status = null, DateTime? ModifiedSince = null, string dateFrom = null, string dateTo = null, string order = null)
+        {
+            int page = 1;
+            if (onlypage.HasValue)
+            {
+                page = onlypage.Value;
+            }
+            try
+            {
+                var records = new List<Xero.NetStandard.OAuth2.Model.Accounting.PurchaseOrder>(); // Hold the records
+                int count = 100; // This is how many per page - setting this will ensure we check for the first page is a full 100 and loop until all returned  
+                while (count == 100)
+                {
+                    var task = Task.Run(() => xeroAPI_A.GetPurchaseOrdersAsync(AccessToken, TenantID, ModifiedSince, status, dateFrom, dateTo, order, page++));
+                    task.Wait();
+                    records.AddRange(task.Result._PurchaseOrders); // Add the next page records returned
+                    count = task.Result._PurchaseOrders.Count; // Record the number of records returned in this page. if less than 100 then the loop will exit otherwise get the next page full
+                    if (onlypage.HasValue)
+                    {
+                        count = -1;
+                    }
+                }
+
+                if (records.Count > 0)
+                {
+                    return records;
+                }
+            }
+            catch (Exception ex)
+            {
+                var er = ex.InnerException as Xero.NetStandard.OAuth2.Client.ApiException;
+                throw new Xero.NetStandard.OAuth2.Client.ApiException(er.ErrorCode, er.Message, er.ErrorContent);
+            }
+
+            return null;
+        }
+        /// <summary>
+        /// Return a single PurchaseOrder
+        /// </summary>
+        /// <param name="purchaseOrderID">Unique identifier for the record</param>
+        /// <returns>PurchaseOrder Record</returns>
+        public Xero.NetStandard.OAuth2.Model.Accounting.PurchaseOrder PurchaseOrder(Guid purchaseOrderID)
+        {
+            if (purchaseOrderID == null)
+            {
+                throw new ArgumentNullException("Missing PurchaseOrder ID");
+            }
+            try
+            {
+                var task = Task.Run(() => xeroAPI_A.GetPurchaseOrderAsync(AccessToken, TenantID, purchaseOrderID));
+                task.Wait();
+                if (task.Result._PurchaseOrders.Count > 0)
+                {
+                    return task.Result._PurchaseOrders[0];
+                }
+            }
+            catch (Exception ex)
+            {
+                var er = ex.InnerException as Xero.NetStandard.OAuth2.Client.ApiException;
+                throw new Xero.NetStandard.OAuth2.Client.ApiException(er.ErrorCode, er.Message, er.ErrorContent);
+            }
+
+            return null;
+        }
+
+        #endregion
+
+
+
+
+
+
+
+
+
+
+
+        #region Assets
+        public List<Xero.NetStandard.OAuth2.Model.Asset.Asset> Assets(Xero.NetStandard.OAuth2.Model.Asset.AssetStatusQueryParam status, int? onlypage = null,
+            string orderBy = null, string sortDirection = null, string filterBy = null)
+        {
+            int page = 1;
+            if (onlypage.HasValue)
+            {
+                page = onlypage.Value;
+            }
+            try
+            {
+                var records = new List<Xero.NetStandard.OAuth2.Model.Asset.Asset>(); // Hold the records
+                int count = 100; // This is how many per page - setting this will ensure we check for the first page is a full 100 and loop until all returned  
+                while (count == 100)
+                {
+
+                    var task = Task.Run(() => xeroAPI_Assets.GetAssetsAsync(AccessToken, TenantID, status, page++, 100, orderBy, sortDirection, filterBy));
+                    task.Wait();
+                    records.AddRange(task.Result.Items); // Add the next page records returned
+                    count = task.Result.Items.Count; // Record the number of records returned in this page. if less than 100 then the loop will exit otherwise get the next page full
+                    if (onlypage.HasValue)
+                    {
+                        count = -1;
+                    }
+
+                }
+
+                if (records.Count > 0)
+                {
+                    return records;
+                }
+            }
+            catch (Exception ex)
+            {
+                var er = ex.InnerException as Xero.NetStandard.OAuth2.Client.ApiException;
+                throw new Xero.NetStandard.OAuth2.Client.ApiException(er.ErrorCode, er.Message, er.ErrorContent);
+            }
+
+            return null;
+        }
+        public List<Xero.NetStandard.OAuth2.Model.Asset.AssetType> AssetTypes()
+        {
+            try
+            {
+                var task = Task.Run(() => xeroAPI_Assets.GetAssetTypesAsync(AccessToken, TenantID));
+                task.Wait();
+                if (task.Result.Count > 0)
+                {
+                    return task.Result;
+                }
+            }
+            catch (Exception ex)
+            {
+                var er = ex.InnerException as Xero.NetStandard.OAuth2.Client.ApiException;
+                throw new Xero.NetStandard.OAuth2.Client.ApiException(er.ErrorCode, er.Message, er.ErrorContent);
             }
             return null;
         }
         #endregion
+
+
+
     }
 }

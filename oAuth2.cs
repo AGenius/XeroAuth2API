@@ -50,14 +50,8 @@ namespace XeroAuth2API
             }
             Timeout = timeout;
 
-            if (!string.IsNullOrEmpty(TokenData.RefreshToken) && (TokenData.ExpiresAtUtc < DateTime.Now || TokenData.ExpiresAtUtc.AddDays(59) < DateTime.Now))
-            {
-                // Do a refresh
-                return RefreshToken(TokenData);
-            }
-
-            // Do a new authenticate if expired (over 59 days)
-            if (string.IsNullOrEmpty(TokenData.RefreshToken) || TokenData.ExpiresAtUtc.AddDays(59) < DateTime.Now)
+            // Check Scope change. If changed then we need to re-authenticate
+            if (XeroConfig.Scope != XeroToken.Scope)
             {
                 var task = Task.Run(() => BeginoAuth2Authentication());
                 task.Wait();
@@ -65,7 +59,24 @@ namespace XeroAuth2API
 
                 return XeroToken; // Return the resulting token
             }
+            else
+            {
+                if (!string.IsNullOrEmpty(TokenData.RefreshToken) && (TokenData.ExpiresAtUtc < DateTime.Now || TokenData.ExpiresAtUtc.AddDays(59) < DateTime.Now))
+                {
+                    // Do a refresh
+                    return RefreshToken(TokenData);
+                }
 
+                // Do a new authenticate if expired (over 59 days)
+                if (string.IsNullOrEmpty(TokenData.RefreshToken) || TokenData.ExpiresAtUtc.AddDays(59) < DateTime.Now)
+                {
+                    var task = Task.Run(() => BeginoAuth2Authentication());
+                    task.Wait();
+                    XeroToken = task.Result; // Set the internal copy of the Token
+
+                    return XeroToken; // Return the resulting token
+                }
+            }
             onStatusUpdates("Token OK", XeroEventStatus.Success);
             return XeroToken;
         }
