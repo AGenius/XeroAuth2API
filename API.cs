@@ -84,11 +84,7 @@ namespace XeroAuth2API
             {
                 XeroConfig.codeVerifier = GenerateCodeVerifier();
             }
-            // Check the Scope and ensure offline_access is included - if not then add it
-            if (!config.Scope.Contains("offline_access"))
-            {
-                config.Scope += " offline_access";
-            }
+
             _authClient = new oAuth2();
             _authClient.XeroToken = token; // Old Token
             _authClient.ParentAPI = this;
@@ -319,18 +315,17 @@ namespace XeroAuth2API
             }
             try
             {
+                if (page == -1) page = null; // This allows a quick first page of records
                 var records = new List<Xero.NetStandard.OAuth2.Model.Accounting.BankTransaction>(); // Hold the records 
                 int count = 100; // This is how many per page - setting this will ensure we check for the first page is a full 100 and loop until all returned            
                 while (count == 100)
                 {
-                    var task = Task.Run(() => xeroAPI_A.GetBankTransactionsAsync(AccessToken, TenantID, ModifiedSince, filter, order, page++, unitdp));
+                    var task = Task.Run(() => xeroAPI_A.GetBankTransactionsAsync(AccessToken, TenantID, ModifiedSince, filter, order, page, unitdp));
                     task.Wait();
                     records.AddRange(task.Result._BankTransactions); // Add the next page records returned
                     count = task.Result._BankTransactions.Count; // Record the number of records returned in this page. if less than 100 then the loop will exit otherwise get the next page full
-                    if (onlypage.HasValue)
-                    {
-                        count = -1;
-                    }
+                    if (page != null) page++;
+                    if (onlypage.HasValue) count = -1;
                 }
 
                 if (records.Count > 0)
@@ -672,14 +667,13 @@ namespace XeroAuth2API
                 int count = 100; // This is how many per page - setting this will ensure we check for the first page is a full 100 and loop until all returned     
                 while (count == 100)
                 {
-                    var task = Task.Run(() => xeroAPI_A.GetContactsAsync(AccessToken, TenantID, ModifiedSince, filter, order, iDs, page++, includeArchived));
+                    if (page == -1) page = null; // This allows a quick first page of records
+                    var task = Task.Run(() => xeroAPI_A.GetContactsAsync(AccessToken, TenantID, ModifiedSince, filter, order, iDs, page, includeArchived));
                     task.Wait();
                     records.AddRange(task.Result._Contacts); // Add the next page records returned
                     count = task.Result._Contacts.Count; // Record the number of records returned in this page. if less than 100 then the loop will exit otherwise get the next page full
-                    if (onlypage.HasValue)
-                    {
-                        count = -1;
-                    }
+                    if (page != null) page++;
+                    if (onlypage.HasValue) count = -1;
                 }
 
                 if (records.Count > 0)
@@ -1059,14 +1053,13 @@ namespace XeroAuth2API
                 int count = 100; // This is how many per page - setting this will ensure we check for the first page is a full 100 and loop until all returned            // If onlypage is set then the client only wants that page of records so stop processing
                 while (count == 100)
                 {
-                    var task = Task.Run(() => xeroAPI_A.GetCreditNotesAsync(AccessToken, TenantID, ModifiedSince, filter, order, page++, unitdp));
+                    if (page == -1) page = null; // This allows a quick first page of records
+                    var task = Task.Run(() => xeroAPI_A.GetCreditNotesAsync(AccessToken, TenantID, ModifiedSince, filter, order, page, unitdp));
                     task.Wait();
                     records.AddRange(task.Result._CreditNotes); // Add the next page records returned
                     count = task.Result._CreditNotes.Count; // Record the number of records returned in this page. if less than 100 then the loop will exit otherwise get the next page full
-                    if (onlypage.HasValue)
-                    {
-                        count = -1;
-                    }
+                    if (page != null) page++;
+                    if (onlypage.HasValue) count = -1;
                 }
 
                 if (records.Count > 0)
@@ -1250,12 +1243,13 @@ namespace XeroAuth2API
 
 
         #region Invoices
+
         /// <summary>
         /// Get a list of Invoices. 
         /// </summary>
         /// <param name="filter">Filter to limit the number of records returned</param>
         /// <param name="order">Order by an any element (optional)</param>
-        /// <param name="onlypage">Up to 100 records will be returned in a single API call with line items details (optional)</param>
+        /// <param name="onlypage">Up to 100 records will be returned in a single API call with line items details (optional) provide 0 for first page quick fetch (no additional collections)</param>
         /// <param name="ModifiedSince">Only records created or modified since this timestamp will be returned (optional)</param>
         /// <param name="iDs">Filter by a comma-separated list of InvoicesIDs. (optional)</param>
         /// <param name="invoiceNumbers">Filter by a comma-separated list of InvoiceNumbers. (optional)</param>
@@ -1268,7 +1262,7 @@ namespace XeroAuth2API
         public List<Xero.NetStandard.OAuth2.Model.Accounting.Invoice> Invoices(string filter = null, string order = null, int? onlypage = null, DateTime? ModifiedSince = null, List<Guid> iDs = null, List<string> invoiceNumbers = null,
             List<Guid> contactIDs = null, List<string> statuses = null, bool? includeArchived = null, bool? createdByMyApp = null, int? unitdp = null)
         {
-            int page = 1;
+            int? page = 1;
             if (onlypage.HasValue)
             {
                 page = onlypage.Value;
@@ -1279,14 +1273,13 @@ namespace XeroAuth2API
                 int count = 100; // This is how many per page - setting this will ensure we check for the first page is a full 100 and loop until all returned      
                 while (count == 100)
                 {
-                    var task = Task.Run(() => xeroAPI_A.GetInvoicesAsync(AccessToken, TenantID, ModifiedSince, filter, order, iDs, invoiceNumbers, contactIDs, statuses, page++, includeArchived, createdByMyApp, unitdp));
+                    if (page == -1) page = null; // This allows a quick first page of records
+                    var task = Task.Run(() => xeroAPI_A.GetInvoicesAsync(AccessToken, TenantID, ModifiedSince, filter, order, iDs, invoiceNumbers, contactIDs, statuses, page, includeArchived, createdByMyApp, unitdp));
                     task.Wait();
                     records.AddRange(task.Result._Invoices); // Add the next page records returned
                     count = task.Result._Invoices.Count; // Record the number of records returned in this page. if less than 100 then the loop will exit otherwise get the next page full
-                    if (onlypage.HasValue)
-                    {
-                        count = -1;
-                    }
+                    if (page != null) page++;
+                    if (onlypage.HasValue) count = -1;
                 }
 
                 if (records.Count > 0)
@@ -1719,14 +1712,13 @@ namespace XeroAuth2API
                 int count = 100; // This is how many per page - setting this will ensure we check for the first page is a full 100 and loop until all returned             
                 while (count == 100)
                 {
-                    var task = Task.Run(() => xeroAPI_A.GetQuotesAsync(AccessToken, TenantID, ModifiedSince, dateFrom, dateTo, expiryDateFrom, expiryDateTo, contactID, status, page++, order, quoteNumber));
+                    if (page == -1) page = null; // This allows a quick first page of records
+                    var task = Task.Run(() => xeroAPI_A.GetQuotesAsync(AccessToken, TenantID, ModifiedSince, dateFrom, dateTo, expiryDateFrom, expiryDateTo, contactID, status, page, order, quoteNumber));
                     task.Wait();
                     records.AddRange(task.Result._Quotes); // Add the next page records returned
                     count = task.Result._Quotes.Count; // Record the number of records returned in this page. if less than 100 then the loop will exit otherwise get the next page full
-                    if (onlypage.HasValue)
-                    {
-                        count = -1;
-                    }
+                    if (page != null) page++;
+                    if (onlypage.HasValue) count = -1;
                 }
 
                 if (records.Count > 0)
@@ -2103,14 +2095,13 @@ namespace XeroAuth2API
                 int count = 100; // This is how many per page - setting this will ensure we check for the first page is a full 100 and loop until all returned  
                 while (count == 100)
                 {
-                    var task = Task.Run(() => xeroAPI_A.GetPurchaseOrdersAsync(AccessToken, TenantID, ModifiedSince, status, dateFrom, dateTo, order, page++));
+                    if (page == -1) page = null; // This allows a quick first page of records
+                    var task = Task.Run(() => xeroAPI_A.GetPurchaseOrdersAsync(AccessToken, TenantID, ModifiedSince, status, dateFrom, dateTo, order, page));
                     task.Wait();
                     records.AddRange(task.Result._PurchaseOrders); // Add the next page records returned
                     count = task.Result._PurchaseOrders.Count; // Record the number of records returned in this page. if less than 100 then the loop will exit otherwise get the next page full
-                    if (onlypage.HasValue)
-                    {
-                        count = -1;
-                    }
+                    if (page != null) page++;
+                    if (onlypage.HasValue) count = -1;
                 }
 
                 if (records.Count > 0)
@@ -2182,16 +2173,13 @@ namespace XeroAuth2API
                 int count = 100; // This is how many per page - setting this will ensure we check for the first page is a full 100 and loop until all returned  
                 while (count == 100)
                 {
-
-                    var task = Task.Run(() => xeroAPI_Assets.GetAssetsAsync(AccessToken, TenantID, status, page++, 100, orderBy, sortDirection, filterBy));
+                    if (page == -1) page = null; // This allows a quick first page of records
+                    var task = Task.Run(() => xeroAPI_Assets.GetAssetsAsync(AccessToken, TenantID, status, page, 100, orderBy, sortDirection, filterBy));
                     task.Wait();
                     records.AddRange(task.Result.Items); // Add the next page records returned
                     count = task.Result.Items.Count; // Record the number of records returned in this page. if less than 100 then the loop will exit otherwise get the next page full
-                    if (onlypage.HasValue)
-                    {
-                        count = -1;
-                    }
-
+                    if (page != null) page++;
+                    if (onlypage.HasValue) count = -1;
                 }
 
                 if (records.Count > 0)
