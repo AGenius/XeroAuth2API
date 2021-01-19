@@ -4,6 +4,8 @@ using System.ComponentModel;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
+using XeroAuth2API.Model;
+using Xero.NetStandard.OAuth2.Model.Accounting;
 
 namespace XeroAuth2API
 {
@@ -12,7 +14,7 @@ namespace XeroAuth2API
         oAuth2 _authClient = null;
         Xero.NetStandard.OAuth2.Api.AccountingApi xeroAPI_A = new Xero.NetStandard.OAuth2.Api.AccountingApi();
         Xero.NetStandard.OAuth2.Api.AssetApi xeroAPI_Assets = new Xero.NetStandard.OAuth2.Api.AssetApi();
-        public Model.XeroConfiguration XeroConfig { get; set; }
+        public XeroConfiguration XeroConfig { get; set; }
         /// <summary>
         /// If provided, the API setup will try and match the name with the correct tenant otherwise the first tenant will be selected
         /// </summary>
@@ -30,7 +32,7 @@ namespace XeroAuth2API
         /// <summary>
         /// Provides access to the available tenants authorized
         /// </summary>
-        public List<Model.Tenant> Tenants
+        public List<Tenant> Tenants
         {
             get
             {
@@ -45,7 +47,7 @@ namespace XeroAuth2API
         /// <summary>
         /// Provide access to the currently selected Tenant , selected by TenantID
         /// </summary>
-        public Model.Tenant SelectedTenant
+        public Tenant SelectedTenant
         {
             get
             {
@@ -87,7 +89,7 @@ namespace XeroAuth2API
                 XeroConfig.AutoSelectTenant = true;
             }
         }
-        public API(Model.XeroConfiguration config = null)
+        public API(XeroConfiguration config = null)
         {
             if (config == null)
             {
@@ -166,7 +168,7 @@ namespace XeroAuth2API
         /// <param name="ModifiedSince">Only records created or modified since this timestamp will be returned (optional)</param>
         /// <param name="order">Order by an any element (optional)</param>
         /// <returns>List of Accounts</returns>
-        public List<Xero.NetStandard.OAuth2.Model.Accounting.Account> Accounts(string filter = null, DateTime? ModifiedSince = null, string order = null)
+        public List<Account> Accounts(string filter = null, DateTime? ModifiedSince = null, string order = null)
         {
             onStatusUpdates("Fetch Accounts", XeroEventStatus.Log);
             try
@@ -192,7 +194,7 @@ namespace XeroAuth2API
         /// </summary>
         /// <param name="accountID">Unique identifier for the record</param>
         /// <returns>Account</returns>
-        public Xero.NetStandard.OAuth2.Model.Accounting.Account Account(Guid accountID)
+        public Account Account(Guid accountID)
         {
             onStatusUpdates("Fetch Account", XeroEventStatus.Log);
             try
@@ -217,7 +219,7 @@ namespace XeroAuth2API
         /// Create an Account, Currently only supports single accounts
         /// </summary>
         /// <param name="record">Account object</param>
-        public Xero.NetStandard.OAuth2.Model.Accounting.Account CreateAccount(Xero.NetStandard.OAuth2.Model.Accounting.Account record)
+        public Account CreateAccount(Account record)
         {
             if (record == null)
             {
@@ -245,7 +247,7 @@ namespace XeroAuth2API
         /// </summary>
         /// <param name="record">Account object (Must contain the AccountID</param>
         /// <returns></returns>
-        public Xero.NetStandard.OAuth2.Model.Accounting.Account UpdateAccount(Xero.NetStandard.OAuth2.Model.Accounting.Account record)
+        public Account UpdateAccount(Account record)
         {
             if (record == null)
             {
@@ -253,10 +255,10 @@ namespace XeroAuth2API
             }
             try
             {
-                var list = new List<Xero.NetStandard.OAuth2.Model.Accounting.Account>();
+                var list = new List<Account>();
                 list.Add(record);
 
-                var header = new Xero.NetStandard.OAuth2.Model.Accounting.Accounts();
+                var header = new Accounts();
                 header._Accounts = list;
 
                 var task = Task.Run(() => xeroAPI_A.UpdateAccountAsync(XeroConfig.XeroAPIToken.AccessToken, XeroConfig.SelectedTenantID, record.AccountID.Value, header));
@@ -319,7 +321,7 @@ namespace XeroAuth2API
         /// <param name="unitdp">e.g. unitdp&#x3D;4 – (Unit Decimal Places) You can opt in to use four decimal places for unit amounts (optional)</param>
         /// <returns>List of BankTransaction records</returns>
         #region Bank Transactions 
-        public List<Xero.NetStandard.OAuth2.Model.Accounting.BankTransaction> BankTransactions(string filter = null, string order = null, int? onlypage = null, DateTime? ModifiedSince = null, int? unitdp = null)
+        public List<BankTransaction> BankTransactions(string filter = null, string order = null, int? onlypage = null, DateTime? ModifiedSince = null, int? unitdp = null)
         {
             int? page = 1;
             if (onlypage.HasValue)
@@ -329,7 +331,7 @@ namespace XeroAuth2API
             try
             {
                 if (page == -1) page = null; // This allows a quick first page of records
-                var records = new List<Xero.NetStandard.OAuth2.Model.Accounting.BankTransaction>(); // Hold the records 
+                var records = new List<BankTransaction>(); // Hold the records 
                 int count = 100; // This is how many per page - setting this will ensure we check for the first page is a full 100 and loop until all returned            
                 while (count == 100)
                 {
@@ -359,7 +361,7 @@ namespace XeroAuth2API
         /// </summary>
         /// <param name="transactionID">Unique identifier for the record</param>
         /// <returns>single BankTransaction record</returns>
-        public Xero.NetStandard.OAuth2.Model.Accounting.BankTransaction BankTransaction(Guid transactionID)
+        public BankTransaction BankTransaction(Guid transactionID)
         {
             try
             {
@@ -391,7 +393,7 @@ namespace XeroAuth2API
         /// <param name="order">Order by an any element (optional)</param>
         /// <param name="ModifiedSince">Only records created or modified since this timestamp will be returned (optional)</param>
         /// <returns></returns>
-        public List<Xero.NetStandard.OAuth2.Model.Accounting.BankTransfer> BankTransfers(string filter = null, string order = null, DateTime? ModifiedSince = null)
+        public List<BankTransfer> BankTransfers(string filter = null, string order = null, DateTime? ModifiedSince = null)
         {
             try
             {
@@ -415,7 +417,7 @@ namespace XeroAuth2API
         /// </summary>
         /// <param name="bankTransferID">Unique identifier for the record</param>
         /// <returns>single BankTransfer record</returns>
-        public Xero.NetStandard.OAuth2.Model.Accounting.BankTransfer BankTransfer(Guid bankTransferID)
+        public BankTransfer BankTransfer(Guid bankTransferID)
         {
             try
             {
@@ -439,7 +441,7 @@ namespace XeroAuth2API
         /// </summary>
         /// <param name="record">Single Bank Transfer Object</param>
         /// <returns>The inserted record</returns>
-        public Xero.NetStandard.OAuth2.Model.Accounting.BankTransfer CreateBankTransfer(Xero.NetStandard.OAuth2.Model.Accounting.BankTransfer record)
+        public BankTransfer CreateBankTransfer(BankTransfer record)
         {
             if (record == null)
             {
@@ -447,10 +449,10 @@ namespace XeroAuth2API
             }
             try
             {
-                var list = new List<Xero.NetStandard.OAuth2.Model.Accounting.BankTransfer>();
+                var list = new List<BankTransfer>();
                 list.Add(record);
 
-                var header = new Xero.NetStandard.OAuth2.Model.Accounting.BankTransfers();
+                var header = new BankTransfers();
                 header._BankTransfers = list;
 
                 var task = Task.Run(() => xeroAPI_A.CreateBankTransferAsync(XeroConfig.XeroAPIToken.AccessToken, XeroConfig.SelectedTenantID, header));
@@ -473,7 +475,7 @@ namespace XeroAuth2API
         /// </summary>
         /// <param name="record">BankTransfers with array of BankTransfer objects in request body</param>
         /// <returns></returns>
-        public Xero.NetStandard.OAuth2.Model.Accounting.BankTransfer CreateBankTransfers(List<Xero.NetStandard.OAuth2.Model.Accounting.BankTransfer> records)
+        public BankTransfer CreateBankTransfers(List<BankTransfer> records)
         {
             if (records == null)
             {
@@ -481,7 +483,7 @@ namespace XeroAuth2API
             }
             try
             {
-                var header = new Xero.NetStandard.OAuth2.Model.Accounting.BankTransfers();
+                var header = new BankTransfers();
                 header._BankTransfers = records;
 
                 var task = Task.Run(() => xeroAPI_A.CreateBankTransferAsync(XeroConfig.XeroAPIToken.AccessToken, XeroConfig.SelectedTenantID, header));
@@ -512,7 +514,7 @@ namespace XeroAuth2API
         /// <param name="order">Order by an any element (optional)</param>
         /// <param name="ModifiedSince">Only records created or modified since this timestamp will be returned (optional)</param>
         /// <returns></returns>
-        public Xero.NetStandard.OAuth2.Model.Accounting.BatchPayment BatchPayments(string filter = null, string order = null, DateTime? ModifiedSince = null)
+        public BatchPayment BatchPayments(string filter = null, string order = null, DateTime? ModifiedSince = null)
         {
             try
             {
@@ -536,7 +538,7 @@ namespace XeroAuth2API
         /// </summary>
         /// <param name="record">BatchPayment Record</param>
         /// <returns>BatchPayment record</returns>
-        public Xero.NetStandard.OAuth2.Model.Accounting.BatchPayment CreateBatchPayment(Xero.NetStandard.OAuth2.Model.Accounting.BatchPayment record)
+        public BatchPayment CreateBatchPayment(BatchPayment record)
         {
             if (record == null)
             {
@@ -544,10 +546,10 @@ namespace XeroAuth2API
             }
             try
             {
-                var list = new List<Xero.NetStandard.OAuth2.Model.Accounting.BatchPayment>();
+                var list = new List<BatchPayment>();
                 list.Add(record);
 
-                var header = new Xero.NetStandard.OAuth2.Model.Accounting.BatchPayments();
+                var header = new BatchPayments();
                 header._BatchPayments = list;
 
                 var task = Task.Run(() => xeroAPI_A.CreateBatchPaymentAsync(XeroConfig.XeroAPIToken.AccessToken, XeroConfig.SelectedTenantID, header));
@@ -570,7 +572,7 @@ namespace XeroAuth2API
         /// </summary>
         /// <param name="records">Lists of BatchPayment Records</param>
         /// <returns>List of BatchPayment records</returns>
-        public List<Xero.NetStandard.OAuth2.Model.Accounting.BatchPayment> CreateBatchPayments(List<Xero.NetStandard.OAuth2.Model.Accounting.BatchPayment> records)
+        public List<BatchPayment> CreateBatchPayments(List<BatchPayment> records)
         {
             if (records == null || records.Count == 0)
             {
@@ -578,7 +580,7 @@ namespace XeroAuth2API
             }
             try
             {
-                var header = new Xero.NetStandard.OAuth2.Model.Accounting.BatchPayments();
+                var header = new BatchPayments();
                 header._BatchPayments = records;
 
                 var task = Task.Run(() => xeroAPI_A.CreateBatchPaymentAsync(XeroConfig.XeroAPIToken.AccessToken, XeroConfig.SelectedTenantID, header));
@@ -606,7 +608,7 @@ namespace XeroAuth2API
         /// Get a list of Branding Themes. There is no filtering available
         /// </summary>
         /// <returns>List containing all the branding themes</returns>
-        public List<Xero.NetStandard.OAuth2.Model.Accounting.BrandingTheme> BrandingThemes()
+        public List<BrandingTheme> BrandingThemes()
         {
             try
             {
@@ -630,7 +632,7 @@ namespace XeroAuth2API
         /// </summary>
         /// <param name="brandingThemeID">Unique identifier for the record</param>
         /// <returns></returns>
-        public Xero.NetStandard.OAuth2.Model.Accounting.BrandingTheme BrandingTheme(Guid brandingThemeID)
+        public BrandingTheme BrandingTheme(Guid brandingThemeID)
         {
             try
             {
@@ -667,7 +669,7 @@ namespace XeroAuth2API
         /// <param name="iDs">Filter by a comma separated list of ContactIDs. Allows you to retrieve a specific set of contacts in a single call. (optional)</param>
         /// <param name="includeArchived">e.g. includeArchived&#x3D;true - Contacts with a status of ARCHIVED will be included in the response (optional)</param>
         /// <returns>List of Contacts</returns>
-        public List<Xero.NetStandard.OAuth2.Model.Accounting.Contact> Contacts(string filter = null, string order = null, int? onlypage = null, DateTime? ModifiedSince = null, List<Guid> iDs = null, bool? includeArchived = null)
+        public List<Contact> Contacts(string filter = null, string order = null, int? onlypage = null, DateTime? ModifiedSince = null, List<Guid> iDs = null, bool? includeArchived = null)
         {
             int? page = 1;
             if (onlypage.HasValue)
@@ -676,7 +678,7 @@ namespace XeroAuth2API
             }
             try
             {
-                var records = new List<Xero.NetStandard.OAuth2.Model.Accounting.Contact>(); // Hold the records
+                var records = new List<Contact>(); // Hold the records
                 int count = 100; // This is how many per page - setting this will ensure we check for the first page is a full 100 and loop until all returned     
                 while (count == 100)
                 {
@@ -707,7 +709,7 @@ namespace XeroAuth2API
         /// </summary>
         /// <param name="contactID">Unique identifier for the record</param>
         /// <returns>A contact reocrd</returns>
-        public Xero.NetStandard.OAuth2.Model.Accounting.Contact GetContact(Guid contactID)
+        public Contact GetContact(Guid contactID)
         {
             if (contactID == null)
             {
@@ -735,7 +737,7 @@ namespace XeroAuth2API
         /// </summary>
         /// <param name="record">object holding the Contact Record</param>
         /// <returns></returns>
-        public Xero.NetStandard.OAuth2.Model.Accounting.Contact CreateContact(Xero.NetStandard.OAuth2.Model.Accounting.Contact record)
+        public Contact CreateContact(Contact record)
         {
             if (record == null)
             {
@@ -743,10 +745,10 @@ namespace XeroAuth2API
             }
             try
             {
-                var list = new List<Xero.NetStandard.OAuth2.Model.Accounting.Contact>();
+                var list = new List<Contact>();
                 list.Add(record);
 
-                var header = new Xero.NetStandard.OAuth2.Model.Accounting.Contacts();
+                var header = new Contacts();
                 header._Contacts = list;
 
                 var task = Task.Run(() => xeroAPI_A.CreateContactsAsync(XeroConfig.XeroAPIToken.AccessToken, XeroConfig.SelectedTenantID, header));
@@ -769,7 +771,7 @@ namespace XeroAuth2API
         /// </summary>
         /// <param name="records">List of contacts to create</param>
         /// <returns>List of created contacts</returns>
-        public List<Xero.NetStandard.OAuth2.Model.Accounting.Contact> CreateContacts(List<Xero.NetStandard.OAuth2.Model.Accounting.Contact> records)
+        public List<Contact> CreateContacts(List<Contact> records)
         {
             if (records == null || records.Count == 0)
             {
@@ -777,7 +779,7 @@ namespace XeroAuth2API
             }
             try
             {
-                var header = new Xero.NetStandard.OAuth2.Model.Accounting.Contacts();
+                var header = new Contacts();
                 header._Contacts = records;
 
                 var task = Task.Run(() => xeroAPI_A.CreateContactsAsync(XeroConfig.XeroAPIToken.AccessToken, XeroConfig.SelectedTenantID, header));
@@ -800,7 +802,7 @@ namespace XeroAuth2API
         /// </summary>
         /// <param name="record">Object holding the contact</param>
         /// <returns>Updated contact record</returns>
-        public Xero.NetStandard.OAuth2.Model.Accounting.Contact UpdateContact(Xero.NetStandard.OAuth2.Model.Accounting.Contact record)
+        public Contact UpdateContact(Contact record)
         {
             if (record == null)
             {
@@ -808,10 +810,10 @@ namespace XeroAuth2API
             }
             try
             {
-                var list = new List<Xero.NetStandard.OAuth2.Model.Accounting.Contact>();
+                var list = new List<Contact>();
                 list.Add(record);
 
-                var header = new Xero.NetStandard.OAuth2.Model.Accounting.Contacts();
+                var header = new Contacts();
                 header._Contacts = list;
 
                 var task = Task.Run(() => xeroAPI_A.UpdateContactAsync(XeroConfig.XeroAPIToken.AccessToken, XeroConfig.SelectedTenantID, record.ContactID.Value, header));
@@ -834,7 +836,7 @@ namespace XeroAuth2API
         /// </summary>
         /// <param name="records">List of objects holding the contacts to update</param>
         /// <returns>List of updated contacts</returns>
-        public List<Xero.NetStandard.OAuth2.Model.Accounting.Contact> UpdateContacts(List<Xero.NetStandard.OAuth2.Model.Accounting.Contact> records)
+        public List<Contact> UpdateContacts(List<Contact> records)
         {
             if (records == null || records.Count == 0)
             {
@@ -842,7 +844,7 @@ namespace XeroAuth2API
             }
             try
             {
-                var header = new Xero.NetStandard.OAuth2.Model.Accounting.Contacts();
+                var header = new Contacts();
                 header._Contacts = records;
 
                 var task = Task.Run(() => xeroAPI_A.UpdateContactAsync(XeroConfig.XeroAPIToken.AccessToken, XeroConfig.SelectedTenantID, new Guid(), header));
@@ -871,7 +873,7 @@ namespace XeroAuth2API
         /// <param name="filter">Filter by an any element (optional)</param>
         /// <param name="order">Order by an any element (optional)</param>
         /// <returns>List of ContactGroup records</returns>
-        public List<Xero.NetStandard.OAuth2.Model.Accounting.ContactGroup> ContactGroup(string filter = null, string order = null)
+        public List<ContactGroup> ContactGroup(string filter = null, string order = null)
         {
             try
             {
@@ -895,7 +897,7 @@ namespace XeroAuth2API
         /// </summary>
         /// <param name="contactGroupID">Unique identifier for the record</param>
         /// <returns>The ContactGroup Record</returns>
-        public Xero.NetStandard.OAuth2.Model.Accounting.ContactGroup ContactGroup(Guid contactGroupID)
+        public ContactGroup ContactGroup(Guid contactGroupID)
         {
             try
             {
@@ -919,7 +921,7 @@ namespace XeroAuth2API
         /// </summary>
         /// <param name="record">ContactGroup Record</param>
         /// <returns>Create ContactGroup Record</returns>
-        public Xero.NetStandard.OAuth2.Model.Accounting.ContactGroup CreateContactGroup(Xero.NetStandard.OAuth2.Model.Accounting.ContactGroup record)
+        public ContactGroup CreateContactGroup(ContactGroup record)
         {
             if (record == null)
             {
@@ -927,10 +929,10 @@ namespace XeroAuth2API
             }
             try
             {
-                var list = new List<Xero.NetStandard.OAuth2.Model.Accounting.ContactGroup>();
+                var list = new List<ContactGroup>();
                 list.Add(record);
 
-                var header = new Xero.NetStandard.OAuth2.Model.Accounting.ContactGroups();
+                var header = new ContactGroups();
                 header._ContactGroups = list;
 
                 var task = Task.Run(() => xeroAPI_A.CreateContactGroupAsync(XeroConfig.XeroAPIToken.AccessToken, XeroConfig.SelectedTenantID, header));
@@ -953,7 +955,7 @@ namespace XeroAuth2API
         /// </summary>
         /// <param name="records">List of contact Group records</param>
         /// <returns></returns>
-        public List<Xero.NetStandard.OAuth2.Model.Accounting.ContactGroup> CreateContactGroups(List<Xero.NetStandard.OAuth2.Model.Accounting.ContactGroup> records)
+        public List<ContactGroup> CreateContactGroups(List<ContactGroup> records)
         {
             if (records == null || records.Count == 0)
             {
@@ -961,7 +963,7 @@ namespace XeroAuth2API
             }
             try
             {
-                var header = new Xero.NetStandard.OAuth2.Model.Accounting.ContactGroups();
+                var header = new ContactGroups();
                 header._ContactGroups = records;
 
                 var task = Task.Run(() => xeroAPI_A.CreateContactGroupAsync(XeroConfig.XeroAPIToken.AccessToken, XeroConfig.SelectedTenantID, header));
@@ -1053,7 +1055,7 @@ namespace XeroAuth2API
         /// <param name="ModifiedSince">Only records created or modified since this timestamp will be returned (optional)</param>
         /// <param name="unitdp">(Unit Decimal Places) You can opt in to use four decimal places for unit amounts (optional)</param>
         /// <returns>List of Credit Note Records</returns>
-        public List<Xero.NetStandard.OAuth2.Model.Accounting.CreditNote> CreditNotes(string filter = null, string order = null, int? onlypage = null, DateTime? ModifiedSince = null, int? unitdp = null)
+        public List<CreditNote> CreditNotes(string filter = null, string order = null, int? onlypage = null, DateTime? ModifiedSince = null, int? unitdp = null)
         {
             int? page = 1;
             if (onlypage.HasValue)
@@ -1062,7 +1064,7 @@ namespace XeroAuth2API
             }
             try
             {
-                var records = new List<Xero.NetStandard.OAuth2.Model.Accounting.CreditNote>(); // Hold the records
+                var records = new List<CreditNote>(); // Hold the records
                 int count = 100; // This is how many per page - setting this will ensure we check for the first page is a full 100 and loop until all returned            // If onlypage is set then the client only wants that page of records so stop processing
                 while (count == 100)
                 {
@@ -1094,7 +1096,7 @@ namespace XeroAuth2API
         /// <param name="creditNoteID">Unique identifier for the record</param>
         /// <param name="unitdp">(Unit Decimal Places) You can opt in to use four decimal places for unit amounts (optional)</param>
         /// <returns>Single Credit Note Record</returns>
-        public Xero.NetStandard.OAuth2.Model.Accounting.CreditNote CreditNote(Guid creditNoteID, int? unitdp = null)
+        public CreditNote CreditNote(Guid creditNoteID, int? unitdp = null)
         {
             if (creditNoteID == null)
             {
@@ -1123,7 +1125,7 @@ namespace XeroAuth2API
         /// <param name="record">Credit Note Record</param>
         /// <param name="unitdp">(Unit Decimal Places) You can opt in to use four decimal places for unit amounts (optional)</param>
         /// <returns>The created Credit Note</returns>
-        public Xero.NetStandard.OAuth2.Model.Accounting.CreditNote CreateCreditNote(Xero.NetStandard.OAuth2.Model.Accounting.CreditNote record, int? unitdp = null)
+        public CreditNote CreateCreditNote(CreditNote record, int? unitdp = null)
         {
             if (record == null)
             {
@@ -1131,10 +1133,10 @@ namespace XeroAuth2API
             }
             try
             {
-                var list = new List<Xero.NetStandard.OAuth2.Model.Accounting.CreditNote>();
+                var list = new List<CreditNote>();
                 list.Add(record);
 
-                var header = new Xero.NetStandard.OAuth2.Model.Accounting.CreditNotes();
+                var header = new CreditNotes();
                 header._CreditNotes = list;
 
                 var task = Task.Run(() => xeroAPI_A.CreateCreditNotesAsync(XeroConfig.XeroAPIToken.AccessToken, XeroConfig.SelectedTenantID, header, null, unitdp));
@@ -1158,7 +1160,7 @@ namespace XeroAuth2API
         /// <param name="record">Credit Note Record</param>
         /// <param name="unitdp">(Unit Decimal Places) You can opt in to use four decimal places for unit amounts (optional)</param>
         /// <returns></returns>
-        public Xero.NetStandard.OAuth2.Model.Accounting.CreditNote UpdateCreditNote(Xero.NetStandard.OAuth2.Model.Accounting.CreditNote record, int? unitdp = null)
+        public CreditNote UpdateCreditNote(CreditNote record, int? unitdp = null)
         {
             if (record == null)
             {
@@ -1166,10 +1168,10 @@ namespace XeroAuth2API
             }
             try
             {
-                var list = new List<Xero.NetStandard.OAuth2.Model.Accounting.CreditNote>();
+                var list = new List<CreditNote>();
                 list.Add(record);
 
-                var header = new Xero.NetStandard.OAuth2.Model.Accounting.CreditNotes();
+                var header = new CreditNotes();
                 header._CreditNotes = list;
 
                 var task = Task.Run(() => xeroAPI_A.UpdateCreditNoteAsync(XeroConfig.XeroAPIToken.AccessToken, XeroConfig.SelectedTenantID, record.CreditNoteID.Value, header));
@@ -1199,7 +1201,7 @@ namespace XeroAuth2API
         /// <param name="filter">Filter to limit the number of records returned</param>
         /// <param name="order">Order by an any element (optional)</param>
         /// <returns>List of Currency Records</returns>
-        public List<Xero.NetStandard.OAuth2.Model.Accounting.Currency> Currencies(string filter = null, string order = null)
+        public List<Currency> Currencies(string filter = null, string order = null)
         {
             try
             {
@@ -1223,7 +1225,7 @@ namespace XeroAuth2API
         /// </summary>
         /// <param name="record">Currency Record</param>
         /// <returns>The Created Currency Record</returns>
-        public Xero.NetStandard.OAuth2.Model.Accounting.Currency CreateCurrency(Xero.NetStandard.OAuth2.Model.Accounting.Currency record)
+        public Currency CreateCurrency(Currency record)
         {
             try
             {
@@ -1272,7 +1274,7 @@ namespace XeroAuth2API
         /// <param name="createdByMyApp">When set to true you&#39;ll only retrieve Invoices created by your app (optional)</param>
         /// <param name="unitdp">(Unit Decimal Places) You can opt in to use four decimal places for unit amounts (optional)</param>
         /// <returns></returns>
-        public List<Xero.NetStandard.OAuth2.Model.Accounting.Invoice> Invoices(string filter = null, string order = null, int? onlypage = null, DateTime? ModifiedSince = null, List<Guid> iDs = null, List<string> invoiceNumbers = null,
+        public List<Invoice> Invoices(string filter = null, string order = null, int? onlypage = null, DateTime? ModifiedSince = null, List<Guid> iDs = null, List<string> invoiceNumbers = null,
             List<Guid> contactIDs = null, List<string> statuses = null, bool? includeArchived = null, bool? createdByMyApp = null, int? unitdp = null)
         {
             int? page = 1;
@@ -1282,7 +1284,7 @@ namespace XeroAuth2API
             }
             try
             {
-                var records = new List<Xero.NetStandard.OAuth2.Model.Accounting.Invoice>(); // Hold the records
+                var records = new List<Invoice>(); // Hold the records
                 int count = 100; // This is how many per page - setting this will ensure we check for the first page is a full 100 and loop until all returned      
                 while (count == 100)
                 {
@@ -1314,7 +1316,7 @@ namespace XeroAuth2API
         /// <param name="invoiceID">Unique identifier for the record</param>
         /// <param name="unitdp">(Unit Decimal Places) You can opt in to use four decimal places for unit amounts (optional)</param>
         /// <returns></returns>
-        public Xero.NetStandard.OAuth2.Model.Accounting.Invoice Invoice(Guid invoiceID, int? unitdp = null)
+        public Invoice Invoice(Guid invoiceID, int? unitdp = null)
         {
             if (invoiceID == null)
             {
@@ -1343,7 +1345,7 @@ namespace XeroAuth2API
         /// <param name="invoice">Invoice record</param>
         /// /// <param name="unitdp">(Unit Decimal Places) You can opt in to use four decimal places for unit amounts (optional)</param>
         /// <returns>Created Invoice Record</returns>
-        public Xero.NetStandard.OAuth2.Model.Accounting.Invoice CreateInvoice(Xero.NetStandard.OAuth2.Model.Accounting.Invoice record, int? unitdp = null)
+        public Invoice CreateInvoice(Invoice record, int? unitdp = null)
         {
             if (record == null)
             {
@@ -1351,10 +1353,10 @@ namespace XeroAuth2API
             }
             try
             {
-                var list = new List<Xero.NetStandard.OAuth2.Model.Accounting.Invoice>();
+                var list = new List<Invoice>();
                 list.Add(record);
 
-                var header = new Xero.NetStandard.OAuth2.Model.Accounting.Invoices();
+                var header = new Invoices();
                 header._Invoices = list;
 
                 var task = Task.Run(() => xeroAPI_A.CreateInvoicesAsync(XeroConfig.XeroAPIToken.AccessToken, XeroConfig.SelectedTenantID, header, null, unitdp));
@@ -1377,7 +1379,7 @@ namespace XeroAuth2API
         /// </summary>
         /// <param name="records"></param>
         /// <returns>List of created invoice Records</returns>
-        public List<Xero.NetStandard.OAuth2.Model.Accounting.Invoice> CreateInvoices(List<Xero.NetStandard.OAuth2.Model.Accounting.Invoice> records, int? unitdp = null)
+        public List<Invoice> CreateInvoices(List<Invoice> records, int? unitdp = null)
         {
             if (records == null || records.Count == 0)
             {
@@ -1385,7 +1387,7 @@ namespace XeroAuth2API
             }
             try
             {
-                var header = new Xero.NetStandard.OAuth2.Model.Accounting.Invoices();
+                var header = new Invoices();
                 header._Invoices = records;
 
                 var task = Task.Run(() => xeroAPI_A.CreateInvoicesAsync(XeroConfig.XeroAPIToken.AccessToken, XeroConfig.SelectedTenantID, header, null, unitdp));
@@ -1408,7 +1410,7 @@ namespace XeroAuth2API
         /// </summary>
         /// <param name="record">Invoice record to update</param>
         /// <returns>Updated Invoice Record</returns>
-        public Xero.NetStandard.OAuth2.Model.Accounting.Invoice UpdateInvoice(Xero.NetStandard.OAuth2.Model.Accounting.Invoice record, int? unitdp = null)
+        public Invoice UpdateInvoice(Invoice record, int? unitdp = null)
         {
             if (record == null)
             {
@@ -1416,10 +1418,10 @@ namespace XeroAuth2API
             }
             try
             {
-                var list = new List<Xero.NetStandard.OAuth2.Model.Accounting.Invoice>();
+                var list = new List<Invoice>();
                 list.Add(record);
 
-                var header = new Xero.NetStandard.OAuth2.Model.Accounting.Invoices();
+                var header = new Invoices();
                 header._Invoices = list;
 
                 var task = Task.Run(() => xeroAPI_A.UpdateInvoiceAsync(XeroConfig.XeroAPIToken.AccessToken, XeroConfig.SelectedTenantID, record.InvoiceID.Value, header));
@@ -1452,7 +1454,7 @@ namespace XeroAuth2API
         /// <param name="unitdp">(Unit Decimal Places) You can opt in to use four decimal places for unit amounts (optional)</param>        
         /// <param name="ModifiedSince">Only records created or modified since this timestamp will be returned (optional)</param>
         /// <returns>List of Items / Products</returns>
-        public List<Xero.NetStandard.OAuth2.Model.Accounting.Item> Items(string filter = null, string order = null, int? unitdp = null, DateTime? ModifiedSince = null)
+        public List<Item> Items(string filter = null, string order = null, int? unitdp = null, DateTime? ModifiedSince = null)
         {
             try
             {
@@ -1477,7 +1479,7 @@ namespace XeroAuth2API
         /// <param name="itemID">Unique identifier for the record</param>
         /// <param name="unitdp">(Unit Decimal Places) You can opt in to use four decimal places for unit amounts (optional)</param>        
         /// <returns>Item Record</returns>
-        public Xero.NetStandard.OAuth2.Model.Accounting.Item Item(Guid itemID, int? unitdp = null)
+        public Item Item(Guid itemID, int? unitdp = null)
         {
             if (itemID == null)
             {
@@ -1506,7 +1508,7 @@ namespace XeroAuth2API
         /// <param name="record">Item Record</param>
         /// <param name="unitdp">(Unit Decimal Places) You can opt in to use four decimal places for unit amounts (optional)</param>
         /// <returns>Updated Item Record</returns>
-        public Xero.NetStandard.OAuth2.Model.Accounting.Item UpdateItem(Xero.NetStandard.OAuth2.Model.Accounting.Item record, int? unitdp = null)
+        public Item UpdateItem(Item record, int? unitdp = null)
         {
             if (record == null)
             {
@@ -1514,10 +1516,10 @@ namespace XeroAuth2API
             }
             try
             {
-                var list = new List<Xero.NetStandard.OAuth2.Model.Accounting.Item>();
+                var list = new List<Item>();
                 list.Add(record);
 
-                var header = new Xero.NetStandard.OAuth2.Model.Accounting.Items();
+                var header = new Items();
                 header._Items = list;
 
                 var task = Task.Run(() => xeroAPI_A.UpdateItemAsync(XeroConfig.XeroAPIToken.AccessToken, XeroConfig.SelectedTenantID, record.ItemID.Value, header, unitdp));
@@ -1541,7 +1543,7 @@ namespace XeroAuth2API
         /// <param name="record">Item/Product Record</param>
         /// <param name="unitdp">(Unit Decimal Places) You can opt in to use four decimal places for unit amounts (optional)</param>
         /// <returns>Created Item Record</returns>
-        public Xero.NetStandard.OAuth2.Model.Accounting.Item CreateItem(Xero.NetStandard.OAuth2.Model.Accounting.Item record, int? unitdp = null)
+        public Item CreateItem(Item record, int? unitdp = null)
         {
             if (record == null)
             {
@@ -1549,10 +1551,10 @@ namespace XeroAuth2API
             }
             try
             {
-                var list = new List<Xero.NetStandard.OAuth2.Model.Accounting.Item>();
+                var list = new List<Item>();
                 list.Add(record);
 
-                var header = new Xero.NetStandard.OAuth2.Model.Accounting.Items();
+                var header = new Items();
                 header._Items = list;
 
                 var task = Task.Run(() => xeroAPI_A.CreateItemsAsync(XeroConfig.XeroAPIToken.AccessToken, XeroConfig.SelectedTenantID, header, null, unitdp));
@@ -1576,7 +1578,7 @@ namespace XeroAuth2API
         /// <param name="records">List of Item/Product Records</param>
         /// <param name="unitdp">(Unit Decimal Places) You can opt in to use four decimal places for unit amounts (optional)</param>
         /// <returns></returns>
-        public List<Xero.NetStandard.OAuth2.Model.Accounting.Item> CreateItems(List<Xero.NetStandard.OAuth2.Model.Accounting.Item> records, int? unitdp = null)
+        public List<Item> CreateItems(List<Item> records, int? unitdp = null)
         {
             if (records == null)
             {
@@ -1584,7 +1586,7 @@ namespace XeroAuth2API
             }
             try
             {
-                var header = new Xero.NetStandard.OAuth2.Model.Accounting.Items();
+                var header = new Items();
                 header._Items = records;
 
                 var task = Task.Run(() => xeroAPI_A.CreateItemsAsync(XeroConfig.XeroAPIToken.AccessToken, XeroConfig.SelectedTenantID, header, null, unitdp));
@@ -1643,7 +1645,7 @@ namespace XeroAuth2API
         /// <param name="offset">Offset by a specified journal number. e.g. journals with a JournalNumber greater than the offset will be returned (optional)</param>
         /// <param name="paymentsOnly">Filter to retrieve journals on a cash basis. Journals are returned on an accrual basis by default. (optional)</param>
         /// <returns>List of Journal Records</returns>
-        public List<Xero.NetStandard.OAuth2.Model.Accounting.Journal> Journals(DateTime? ModifiedSince = null, int? offset = null, bool? paymentsOnly = null)
+        public List<Journal> Journals(DateTime? ModifiedSince = null, int? offset = null, bool? paymentsOnly = null)
         {
             try
             {
@@ -1672,7 +1674,7 @@ namespace XeroAuth2API
         /// Retrieve Organisation details
         /// </summary>
         /// <returns></returns>
-        public List<Xero.NetStandard.OAuth2.Model.Accounting.Organisation> Organisations()
+        public List<Organisation> Organisations()
         {
             try
             {
@@ -1712,7 +1714,7 @@ namespace XeroAuth2API
         /// <param name="status">Filter for quotes of a particular Status (optional)</param>
         /// <param name="quoteNumber">Filter by quote number (e.g. GET https://.../Quotes?QuoteNumber&#x3D;QU-0001) (optional)</param>
         /// <returns>List of Quotes</returns>
-        public List<Xero.NetStandard.OAuth2.Model.Accounting.Quote> Quotes(string order = null, int? onlypage = null, DateTime? ModifiedSince = null, DateTime? dateFrom = null, DateTime? dateTo = null, DateTime? expiryDateFrom = null, DateTime? expiryDateTo = null, Guid? contactID = null, string status = null, string quoteNumber = null)
+        public List<Quote> Quotes(string order = null, int? onlypage = null, DateTime? ModifiedSince = null, DateTime? dateFrom = null, DateTime? dateTo = null, DateTime? expiryDateFrom = null, DateTime? expiryDateTo = null, Guid? contactID = null, string status = null, string quoteNumber = null)
         {
             int? page = 1;
             if (onlypage.HasValue)
@@ -1721,7 +1723,7 @@ namespace XeroAuth2API
             }
             try
             {
-                var records = new List<Xero.NetStandard.OAuth2.Model.Accounting.Quote>(); // Hold the records
+                var records = new List<Quote>(); // Hold the records
                 int count = 100; // This is how many per page - setting this will ensure we check for the first page is a full 100 and loop until all returned             
                 while (count == 100)
                 {
@@ -1752,7 +1754,7 @@ namespace XeroAuth2API
         /// </summary>
         /// <param name="quoteID">Unique identifier for the record</param>
         /// <returns>Quote Object</returns>
-        public Xero.NetStandard.OAuth2.Model.Accounting.Quote Quote(Guid quoteID)
+        public Quote Quote(Guid quoteID)
         {
             if (quoteID == null)
             {
@@ -1775,7 +1777,7 @@ namespace XeroAuth2API
 
             return null;
         }
-        public Xero.NetStandard.OAuth2.Model.Accounting.Quote CreateQuote(Xero.NetStandard.OAuth2.Model.Accounting.Quote record, int? unitdp = null)
+        public Quote CreateQuote(Quote record, int? unitdp = null)
         {
             if (record == null)
             {
@@ -1783,10 +1785,10 @@ namespace XeroAuth2API
             }
             try
             {
-                var list = new List<Xero.NetStandard.OAuth2.Model.Accounting.Quote>();
+                var list = new List<Quote>();
                 list.Add(record);
 
-                var header = new Xero.NetStandard.OAuth2.Model.Accounting.Quotes();
+                var header = new Quotes();
                 header._Quotes = list;
 
                 var task = Task.Run(() => xeroAPI_A.CreateQuotesAsync(XeroConfig.XeroAPIToken.AccessToken, XeroConfig.SelectedTenantID, header));
@@ -1817,7 +1819,7 @@ namespace XeroAuth2API
         /// <param name="order">Order by an any element (optional)</param>
         /// <param name="taxType">Filter by tax type (optional)</param>
         /// <returns>List of TaxRate Records</returns>
-        public List<Xero.NetStandard.OAuth2.Model.Accounting.TaxRate> TaxRates(string filter = null, string order = null, string taxType = null)
+        public List<TaxRate> TaxRates(string filter = null, string order = null, string taxType = null)
         {
             try
             {
@@ -1841,7 +1843,7 @@ namespace XeroAuth2API
         /// </summary>
         /// <param name="name">Name of the TaxRate</param>
         /// <returns>TaxRate Record</returns>
-        public Xero.NetStandard.OAuth2.Model.Accounting.TaxRate TaxRate(string name)
+        public TaxRate TaxRate(string name)
         {
             try
             {
@@ -1865,7 +1867,7 @@ namespace XeroAuth2API
         /// </summary>
         /// <param name="record">TaxRate Record</param>
         /// <returns></returns>
-        public Xero.NetStandard.OAuth2.Model.Accounting.TaxRate CreateTaxRate(Xero.NetStandard.OAuth2.Model.Accounting.TaxRate record)
+        public TaxRate CreateTaxRate(TaxRate record)
         {
             if (record == null)
             {
@@ -1873,10 +1875,10 @@ namespace XeroAuth2API
             }
             try
             {
-                var list = new List<Xero.NetStandard.OAuth2.Model.Accounting.TaxRate>();
+                var list = new List<TaxRate>();
                 list.Add(record);
 
-                var header = new Xero.NetStandard.OAuth2.Model.Accounting.TaxRates();
+                var header = new TaxRates();
                 header._TaxRates = list;
 
                 var task = Task.Run(() => xeroAPI_A.CreateTaxRatesAsync(XeroConfig.XeroAPIToken.AccessToken, XeroConfig.SelectedTenantID, header));
@@ -1899,7 +1901,7 @@ namespace XeroAuth2API
         /// </summary>
         /// <param name="records">List of TaxRate Records</param>
         /// <returns>List of created TaxRate Records</returns>
-        public List<Xero.NetStandard.OAuth2.Model.Accounting.TaxRate> CreateTaxRates(List<Xero.NetStandard.OAuth2.Model.Accounting.TaxRate> records)
+        public List<TaxRate> CreateTaxRates(List<TaxRate> records)
         {
             if (records == null || records.Count == 0)
             {
@@ -1907,7 +1909,7 @@ namespace XeroAuth2API
             }
             try
             {
-                var header = new Xero.NetStandard.OAuth2.Model.Accounting.TaxRates();
+                var header = new TaxRates();
                 header._TaxRates = records;
 
                 var task = Task.Run(() => xeroAPI_A.CreateTaxRatesAsync(XeroConfig.XeroAPIToken.AccessToken, XeroConfig.SelectedTenantID, header));
@@ -1930,7 +1932,7 @@ namespace XeroAuth2API
         /// </summary>
         /// <param name="record">TaxRate Record to Update</param>
         /// <returns>Updated TaxRate Record</returns>
-        public Xero.NetStandard.OAuth2.Model.Accounting.TaxRate UpdateTaxRate(Xero.NetStandard.OAuth2.Model.Accounting.TaxRate record)
+        public TaxRate UpdateTaxRate(TaxRate record)
         {
             if (record == null)
             {
@@ -1938,10 +1940,10 @@ namespace XeroAuth2API
             }
             try
             {
-                var list = new List<Xero.NetStandard.OAuth2.Model.Accounting.TaxRate>();
+                var list = new List<TaxRate>();
                 list.Add(record);
 
-                var header = new Xero.NetStandard.OAuth2.Model.Accounting.TaxRates();
+                var header = new TaxRates();
                 header._TaxRates = list;
 
                 var task = Task.Run(() => xeroAPI_A.UpdateTaxRateAsync(XeroConfig.XeroAPIToken.AccessToken, XeroConfig.SelectedTenantID, header));
@@ -1964,7 +1966,7 @@ namespace XeroAuth2API
         /// </summary>
         /// <param name="records">List of TaxRate Records to Update</param>
         /// <returns>List of Updated TaxRate Records</returns>
-        public List<Xero.NetStandard.OAuth2.Model.Accounting.TaxRate> UpdateTaxRates(List<Xero.NetStandard.OAuth2.Model.Accounting.TaxRate> records)
+        public List<TaxRate> UpdateTaxRates(List<TaxRate> records)
         {
             if (records == null || records.Count == 0)
             {
@@ -1972,7 +1974,7 @@ namespace XeroAuth2API
             }
             try
             {
-                var header = new Xero.NetStandard.OAuth2.Model.Accounting.TaxRates();
+                var header = new TaxRates();
                 header._TaxRates = records;
 
                 var task = Task.Run(() => xeroAPI_A.UpdateTaxRateAsync(XeroConfig.XeroAPIToken.AccessToken, XeroConfig.SelectedTenantID, header));
@@ -2003,7 +2005,7 @@ namespace XeroAuth2API
         /// <param name="order">Order by an any element (optional)</param>
         /// <param name="includeArchived"></param>
         /// <returns>List of TrackingCategory Records</returns>
-        public List<Xero.NetStandard.OAuth2.Model.Accounting.TrackingCategory> TrackingCategories(string filter = null, string order = null, bool? includeArchived = null)
+        public List<TrackingCategory> TrackingCategories(string filter = null, string order = null, bool? includeArchived = null)
         {
             try
             {
@@ -2027,7 +2029,7 @@ namespace XeroAuth2API
         /// </summary>
         /// <param name="trackingCategoryID">Unique identifier for the record</param>
         /// <returns>TrackingCategory Record</returns>
-        public Xero.NetStandard.OAuth2.Model.Accounting.TrackingCategory TrackingCategory(Guid trackingCategoryID)
+        public TrackingCategory TrackingCategory(Guid trackingCategoryID)
         {
             try
             {
@@ -2059,7 +2061,7 @@ namespace XeroAuth2API
         /// <param name="ModifiedSince">Only records created or modified since this timestamp will be returned (optional)</param>
         /// <param name="order">Order by an any element (optional)</param>
         /// <returns>List of User Records</returns>
-        public List<Xero.NetStandard.OAuth2.Model.Accounting.User> Users(string filter = null, DateTime? ModifiedSince = null, string order = null)
+        public List<User> Users(string filter = null, DateTime? ModifiedSince = null, string order = null)
         {
             try
             {
@@ -2095,7 +2097,7 @@ namespace XeroAuth2API
         /// <param name="dateTo">Filter by purchase order date (e.g. GET https://.../PurchaseOrders?DateFrom&#x3D;2015-12-01&amp;DateTo&#x3D;2015-12-31 (optional)</param>
         /// <param name="order">Order by an any element (optional)</param>
         /// <returns>List of Purchase Orders</returns>
-        public List<Xero.NetStandard.OAuth2.Model.Accounting.PurchaseOrder> PurchaseOrders(int? onlypage = null, string status = null, DateTime? ModifiedSince = null, string dateFrom = null, string dateTo = null, string order = null)
+        public List<PurchaseOrder> PurchaseOrders(int? onlypage = null, string status = null, DateTime? ModifiedSince = null, string dateFrom = null, string dateTo = null, string order = null)
         {
             int? page = 1;
             if (onlypage.HasValue)
@@ -2104,7 +2106,7 @@ namespace XeroAuth2API
             }
             try
             {
-                var records = new List<Xero.NetStandard.OAuth2.Model.Accounting.PurchaseOrder>(); // Hold the records
+                var records = new List<PurchaseOrder>(); // Hold the records
                 int count = 100; // This is how many per page - setting this will ensure we check for the first page is a full 100 and loop until all returned  
                 while (count == 100)
                 {
@@ -2135,7 +2137,7 @@ namespace XeroAuth2API
         /// </summary>
         /// <param name="purchaseOrderID">Unique identifier for the record</param>
         /// <returns>PurchaseOrder Record</returns>
-        public Xero.NetStandard.OAuth2.Model.Accounting.PurchaseOrder PurchaseOrder(Guid purchaseOrderID)
+        public PurchaseOrder PurchaseOrder(Guid purchaseOrderID)
         {
             if (purchaseOrderID == null)
             {

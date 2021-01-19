@@ -8,13 +8,14 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Security.Cryptography;
 using System.Threading.Tasks;
+using XeroAuth2API.Model;
 
 namespace XeroAuth2API
 {
     public class oAuth2
     {
-        public Model.XeroConfiguration XeroConfig { get; set; }
-        public Model.XeroAccessToken XeroAPIToken { get; set; } // Hold the active Access and Refresh tokens
+        public XeroConfiguration XeroConfig { get; set; }
+        public XeroAccessToken XeroAPIToken { get; set; } // Hold the active Access and Refresh tokens
         public int? Timeout { get; set; }
 
         LocalHttpListener responseListener = null;
@@ -55,7 +56,7 @@ namespace XeroAuth2API
             }
             if (XeroConfig.XeroAPIToken == null)
             {
-                XeroConfig.XeroAPIToken = new Model.XeroAccessToken();
+                XeroConfig.XeroAPIToken = new XeroAccessToken();
             }
 
             Timeout = timeout;
@@ -103,7 +104,7 @@ namespace XeroAuth2API
             onStatusUpdates("Begin Authentication", XeroEventStatus.Success);
 
             XeroConfig.ReturnedAccessCode = null;// Ensure the Return code cleared as we are authenticating and this propery will be monitored for the completion
-            XeroConfig.XeroAPIToken = new Model.XeroAccessToken(); // Reset this token as we are authenticating so its all going to be replaced
+            XeroConfig.XeroAPIToken = new XeroAccessToken(); // Reset this token as we are authenticating so its all going to be replaced
             //start webserver to listen for the callback
             responseListener = new LocalHttpListener();
             responseListener.Message += MessageResponse;
@@ -195,7 +196,7 @@ namespace XeroAuth2API
                     content = contenttask.Result;
 
                     // Record the Available Tenants
-                    XeroConfig.XeroAPIToken.Tenants = JsonConvert.DeserializeObject<List<Model.Tenant>>(content);
+                    XeroConfig.XeroAPIToken.Tenants = JsonConvert.DeserializeObject<List<Tenant>>(content);
 
                     // Raise event to the parent caller (your app) 
                     onStatusUpdates("Code Exchange Completed", XeroEventStatus.Success);
@@ -213,7 +214,7 @@ namespace XeroAuth2API
         /// REvoke the Access Token and disconnect the tenants from the user
         /// </summary>
         /// <param name="xeroToken"></param>
-        public void RevokeToken(Model.XeroAccessToken XeroToken)
+        public void RevokeToken(XeroAccessToken XeroToken)
         {
             if (XeroToken == null)
             {
@@ -271,7 +272,7 @@ namespace XeroAuth2API
             contenttask.Wait();
             content = contenttask.Result;// await response.Content.ReadAsStringAsync();
 
-            XeroConfig.XeroAPIToken.Tenants = JsonConvert.DeserializeObject<List<Model.Tenant>>(content);
+            XeroConfig.XeroAPIToken.Tenants = JsonConvert.DeserializeObject<List<Tenant>>(content);
 
             onStatusUpdates("Token Refresh Success", XeroEventStatus.Refreshed);
 
@@ -282,12 +283,12 @@ namespace XeroAuth2API
         /// </summary>
         /// <param name="content">reponse string containing the data </param>
         /// <returns></returns>
-        private Model.XeroAccessToken UnpackToken(string content)
+        private XeroAccessToken UnpackToken(string content)
         {
             // Record the token data
             var tokens = JObject.Parse(content);
 
-            Model.XeroAccessToken newToken = new Model.XeroAccessToken();
+            XeroAccessToken newToken = new XeroAccessToken();
 
             newToken.IdToken = tokens["id_token"]?.ToString();
             newToken.AccessToken = tokens["access_token"]?.ToString();
