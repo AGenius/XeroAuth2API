@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
@@ -13,10 +13,9 @@ using System.Windows.Forms;
 namespace XeroAPI2Tests
 {
     public partial class Form1 : Form
-    {       
-        string XeroClientID = "ClientID";
-        Uri XeroCallbackUri = new Uri("http://localhost:8888/callback");
-        string XeroScope = "openid profile email files accounting.transactions accounting.reports.read accounting.journals.read accounting.settings.read accounting.contacts assets";
+    {        
+        string XeroClientID = "Your Client ID";
+        Uri XeroCallbackUri = new Uri("http://localhost:8888/callback");        
         string XeroState = "123456";
 
         public static string ApplicationPath = System.IO.Directory.GetParent(System.Reflection.Assembly.GetEntryAssembly().Location).FullName;
@@ -31,20 +30,46 @@ namespace XeroAPI2Tests
         {
             InitializeComponent();
         }
-
-        private void simpleButton1_Click(object sender, EventArgs e)
+        private void Form1_Load(object sender, EventArgs e)
         {
+            string tokendata = ReadTextFile("tokendata.txt");
+            if (!string.IsNullOrEmpty(tokendata))
+            {
+                accessToken = DeSerializeObject<XeroAuth2API.Model.XeroOAuthToken>(tokendata);
+            }
+            else
+            {
+                accessToken = new XeroAuth2API.Model.XeroOAuthToken();
+            }
+
             XeroConfig = new XeroAuth2API.Model.XeroConfiguration
             {
                 ClientID = XeroClientID,
                 CallbackUri = XeroCallbackUri,
-                Scope = XeroScope,
-                // State = XeroState, // Not needed for a desktop app
+                // Add them this way or see below
+                //Scopes = new List<XeroAuth2API.XeroScope> { XeroAuth2API.XeroScope.openid, XeroAuth2API.XeroScope.profile, XeroAuth2API.XeroScope.email, XeroAuth2API.XeroScope.accounting_contacts },
+                State = XeroState, // Optional - Not needed for a desktop app
                 codeVerifier = null // Code verifier will be generated if empty
             };
 
+            XeroConfig.AddScope(XeroAuth2API.XeroScope.all);
+            // Or add idividualy
+            //XeroConfig.AddScope(XeroAuth2API.XeroScope.files);
+            //XeroConfig.AddScope(XeroAuth2API.XeroScope.accounting_transactions);
+            //XeroConfig.AddScope(XeroAuth2API.XeroScope.accounting_reports_read);
+            //XeroConfig.AddScope(XeroAuth2API.XeroScope.accounting_journals_read);
+            //XeroConfig.AddScope(XeroAuth2API.XeroScope.accounting_settings_read);
+            //XeroConfig.AddScope(XeroAuth2API.XeroScope.accounting_contacts);
+            //XeroConfig.AddScope(XeroAuth2API.XeroScope.assets);
+
             xeroAPI = new XeroAuth2API.API(XeroConfig, accessToken);
             xeroAPI.StatusUpdates += StatusUpdates; // Bind to the status update event 
+
+        }
+        private void simpleButton1_Click(object sender, EventArgs e)
+        {
+
+
             xeroAPI.InitializeAPI(); // Init the API and pass in the old token - this will be refreshed if required
 
             // Write the AccessToken to storage
@@ -69,7 +94,7 @@ namespace XeroAPI2Tests
                 // Deal with the error
                 int stop = 0;
             }
-            
+
 
 
             var POrders = xeroAPI.PurchaseOrders();
@@ -187,20 +212,7 @@ namespace XeroAPI2Tests
 
             //</EhFooter>
         }
-        private void Form1_Load(object sender, EventArgs e)
-        {
-            string tokendata = ReadTextFile("tokendata.txt");
-            if (!string.IsNullOrEmpty(tokendata))
-            {
-                accessToken = DeSerializeObject<XeroAuth2API.Model.XeroOAuthToken>(tokendata);
-            }
-            else
-            {
-                accessToken = new XeroAuth2API.Model.XeroOAuthToken();
-            }
 
-
-        }
 
 
         /// <summary>Read the contents of a text file into a string </summary>
