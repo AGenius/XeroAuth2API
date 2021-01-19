@@ -18,6 +18,10 @@ namespace XeroAuth2API.Model
         /// Not needed for local desktop application
         /// </summary>
         public string ReturnedState { get; set; }
+        /// <summary>
+        /// Holds the Live AccessToken
+        /// </summary>
+        public XeroAccessToken XeroAPIToken { get; set; }
         public string codeVerifier { get; set; }
         /// <summary>
         /// Issued when you create your Zero app
@@ -41,7 +45,7 @@ namespace XeroAuth2API.Model
             {
                 if (_scopes == null)
                 {
-                    _scopes = new List<XeroScope> { XeroScope.offline_access, XeroScope.openid, XeroScope.profile }; // Always need this
+                    _scopes = new List<XeroScope>();
                 }
 
                 return _scopes;
@@ -49,11 +53,18 @@ namespace XeroAuth2API.Model
             set
             {
                 _scopes = value;
+
+                if (!_scopes.Contains(XeroScope.openid))
+                {
+                    AddScope(XeroScope.openid); // Ensure its in there
+                }
+                if (!_scopes.Contains(XeroScope.profile))
+                {
+                    AddScope(XeroScope.profile); // Ensure its in there
+                }
                 if (!_scopes.Contains(XeroScope.offline_access))
                 {
-                    AddScope(XeroScope.offline_access); // Ensure its in there
-                    AddScope(XeroScope.openid); // Ensure its in there
-                    AddScope(XeroScope.profile); // Ensure its in there
+                    AddScope(XeroScope.offline_access); // Ensure its in there                   
                 }
             }
         }
@@ -128,6 +139,19 @@ namespace XeroAuth2API.Model
         {
             get
             {
+                if (!_scopes.Contains(XeroScope.openid))
+                {
+                    AddScope(XeroScope.openid); // Ensure its in there
+                }
+                if (!_scopes.Contains(XeroScope.profile))
+                {
+                    AddScope(XeroScope.profile); // Ensure its in there
+                }
+                if (!_scopes.Contains(XeroScope.offline_access))
+                {
+                    AddScope(XeroScope.offline_access); // Ensure its in there                   
+                }
+
                 string scopelist = string.Empty;
                 foreach (var item in Scopes)
                 {
@@ -137,8 +161,7 @@ namespace XeroAuth2API.Model
                     }
                     if (item == XeroScope.offline_access)
                     {
-                        // Dont replace the _ with . for offline access as this is the correct name to pass !!!!!!!
-                        scopelist += item.ToString();
+                        // Dont add now                        
                     }
                     else
                     {
@@ -146,6 +169,8 @@ namespace XeroAuth2API.Model
                     }
 
                 }
+                // To ensure offline_access is at the end of the scope list
+                scopelist += " offline_access";
                 return scopelist;
             }
         }
@@ -173,7 +198,7 @@ namespace XeroAuth2API.Model
                             .Replace('+', '-')
                             .Replace('/', '_');
                     }
-                    string url = $"{XeroURLS.XERO_AUTH_URL}response_type=code&client_id={ClientID}&redirect_uri={CallbackUri.AbsoluteUri}&scope={Scope}&code_challenge={codeChallenge}&code_challenge_method=S256";
+                    string url = $"{XeroURLS.XERO_AUTH_URL}response_type=code&client_id={ClientID}&redirect_uri={CallbackUri.AbsoluteUri}&scope={Scope.Replace(" ", "%20")}&code_challenge={codeChallenge}&code_challenge_method=S256";
                     if (!string.IsNullOrEmpty(State))
                     {
                         return $"{url}&state={State}";
@@ -185,5 +210,34 @@ namespace XeroAuth2API.Model
                 return string.Empty;
             }
         }
+
+        /// <summary>
+        /// If provided, the API setup will try and match the name with the correct tenant otherwise the first tenant will be selected
+        /// </summary>
+        public string SelectedTenantName
+        {
+            get
+            {
+                if (SelectedTenant != null)
+                {
+                    return SelectedTenant.TenantName;
+                }
+                return null;
+            }
+        }
+        public string SelectedTenantID
+        {
+            get
+            {
+                if (SelectedTenant != null)
+                {
+                    return SelectedTenant.TenantId.ToString();
+                }
+                return null;
+            }
+        }// The Tenant ID to use for API calls
+        public Tenant SelectedTenant { get; set; }// The Tenant  
+        public bool StoreReceivedScope { get; set; }
+
     }
 }
