@@ -11,6 +11,10 @@ namespace XeroAuth2API.Model
         public string RefreshToken { get; set; }
         public string IdToken { get; set; }
         public DateTime ExpiresAtUtc { get; set; }
+        /// <summary>
+        /// Record the Scope used. If the scope is changed on a refresh then force a re-authentication
+        /// </summary>
+        public string Scope { get; set; }
 
     }
 }
