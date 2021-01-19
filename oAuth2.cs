@@ -73,7 +73,7 @@ namespace XeroAuth2API
                     var task = Task.Run(() => BeginoAuth2Authentication());
                     task.Wait();
                     XeroToken = task.Result; // Set the internal copy of the Token
-                    XeroToken.Scope = XeroConfig.Scope; // Ensure the used scope is saved
+
                     return XeroToken; // Return the resulting token
                 }
             }
