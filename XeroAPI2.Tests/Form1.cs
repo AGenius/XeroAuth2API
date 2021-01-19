@@ -100,7 +100,7 @@ namespace XeroAPI2Tests
             var POrders = xeroAPI.PurchaseOrders();
             if (POrders != null && POrders.Count > 0)
             {
-                // var singlePO = xeroAPI.TrackingCategory(POrders[0].TrackingCategoryID.Value);
+                var singlePO = xeroAPI.PurchaseOrder(POrders[0].PurchaseOrderID.Value);
             }
 
             var users = xeroAPI.Users();
