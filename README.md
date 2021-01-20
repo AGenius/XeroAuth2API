@@ -85,7 +85,7 @@ if (!string.IsNullOrEmpty(tokendata))
 {
     XeroAccessToken token = DeSerializeObject<XeroAccessToken>(tokendata);
     XeroConfig.XeroAPIToken = token;
-    XeroAuth2API.API  xeroAPI = new XeroAuth2API.API(XeroConfig);
+    XeroAuth2API.API xeroAPI = new XeroAuth2API.API(XeroConfig);
 }
 ```
 
@@ -122,27 +122,40 @@ To get started you will just need two things to make calls to the Accounting Api
 To request data from Xero its a simple as
 
 ```c#
-var accounts = xeroAPI.Accounts(); 
+var accounts = xeroAPI.AccountingApi.Accounts(); 
 ```
 or fetch a single item.
 
 ```c#
-var singleAccount = xeroAPI.Account(accounts[5].AccountID.Value);
+var singleAccount = xeroAPI.AccountingApi.Account(accounts[5].AccountID.Value);
 ```
 Invoices
 ```c#
-var invoices = xeroAPI.Invoices();
-var singleinvcoice = xeroAPI.Invoice(invoices[5].InvoiceID.Value);
+var invoices = xeroAPI.AccountingApi.Invoices();
+var singleinvcoice = xeroAPI.AccountingApi.Invoice(invoices[5].InvoiceID.Value);
 ```
 Quick first page of invoices
 ```c#
-var invoices = xeroAPI.Invoices(null, null, -1);
+var invoices = xeroAPI.AccountingApi.Invoices(null, null, -1);
+```
+
+fetch a list of assets
+```c#
+ try
+	{
+		 
+		var assets = xeroAPI.AssetApi.Assets(Xero.NetStandard.OAuth2.Model.Asset.AssetStatusQueryParam.REGISTERED);
+	}
+	catch (Exception ex)
+	{
+		// Deal with the error	 
+	}
 ```
 
 You can even create a record using a single call
 
 ```c#
-var createdInv = xeroAPI.CreateInvoice(invoiceRecord);
+var createdInv = xeroAPI.AccountingApi.CreateInvoice(invoiceRecord);
 ```
 
 This requires an invoice object to be created and can be accomplished via building the object first
@@ -245,7 +258,7 @@ invoiceRecord.LineItems.Add(lineItem2); // Add the line item to the invoice obje
 
 if (invoiceRecord.ValidationErrors == null || invoiceRecord.ValidationErrors.Count == 0)
 {
-    var createdInv = xeroAPI.CreateInvoice(invoiceRecord);
+    var createdInv = xeroAPI.AccountingApi.CreateInvoice(invoiceRecord);
     if (createdInv.InvoiceID != Guid.Empty)
     {
         Debug.WriteLine("Created New Invoice");
@@ -256,9 +269,5 @@ if (invoiceRecord.ValidationErrors == null || invoiceRecord.ValidationErrors.Cou
 ## Known Issues
 * Currently the oAuth2 handles PKCE only.
 * The State value , although sent and received is not checked for validity
-* Only handles the AccountingAPI
-
-
-
-
-
+* Need to Add Payroll
+* Need to add BankFeeds
