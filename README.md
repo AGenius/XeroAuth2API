@@ -27,7 +27,7 @@ Follow these steps to create your Xero app to allow access to your Xero tenant(s
 * Use this URL for beta access to oAuth2 [https://developer.xero.com/myapps](https://developer.xero.com/myapps)
 * Click "New app" link
 * Enter your App name, company url, privacy policy url, and redirect URI (this is your callback url - localhost, etc) I would suggest http://localhost:8888/callback/
-* choose PKCE
+* Choose PKCE
 * Agree to terms and condition and click "Create App".
 * Copy your client id and client secret and save for use later.
 * Click the "Save" button. 
@@ -41,31 +41,81 @@ I built something similar in the past using the TCP Listener and started to look
 ## Getting Started
 Example of how to use this API Wrapper
 
+There are a number ways to setup the API
+
+1 Create a config object. Set it up and pass it to the API
 ```c#
-XeroAuth2API.API xeroAPI = new XeroAuth2API.API(XeroClientID, XeroCallbackUri, XeroScope, XeroState, savedAccessToken);
+// Setup New Config
+XeroConfiguration XeroConfig = new XeroConfiguration
+{
+    ClientID = XeroClientID,
+    CallbackUri = XeroCallbackUri,
+    // Add Scopes this way or see below
+    ////Scopes = new List<XeroAuth2API.XeroScope> { XeroAuth2API.XeroScope.accounting_contacts, XeroAuth2API.XeroScope.accounting_transactions },
+    //State = XeroState, // Optional - Not needed for a desktop app
+    codeVerifier = null // Code verifier will be generated if empty
+};
+
+XeroConfig.AddScope(XeroAuth2API.XeroScope.all);
+XeroAuth2API.API  xeroAPI = new XeroAuth2API.API(XeroConfig);
 ```
+2 Load the Config from storage and pass to the API
+```c#
+string tokendata = ReadTextFile("tokendata.txt");
+if (!string.IsNullOrEmpty(tokendata))
+{
+    XeroConfiguration XeroConfig = DeSerializeObject<XeroConfiguration>(tokendata);
+    XeroAuth2API.API  xeroAPI = new XeroAuth2API.API(XeroConfig);
+}
+```
+3 Create a new Config and restore just the Access Token portion
+```c#
+XeroConfiguration XeroConfig = new XeroConfiguration
+{
+    ClientID = XeroClientID,
+    CallbackUri = XeroCallbackUri,
+    // Add Scopes this way or see below
+    ////Scopes = new List<XeroAuth2API.XeroScope> { XeroAuth2API.XeroScope.accounting_contacts, XeroAuth2API.XeroScope.accounting_transactions },
+    //State = XeroState, // Optional - Not needed for a desktop app
+    codeVerifier = null // Code verifier will be generated if empty
+};
+
+string tokendata = ReadTextFile("tokendata.txt");
+if (!string.IsNullOrEmpty(tokendata))
+{
+    XeroAccessToken token = DeSerializeObject<XeroAccessToken>(tokendata);
+    XeroConfig.XeroAPIToken = token;
+    XeroAuth2API.API  xeroAPI = new XeroAuth2API.API(XeroConfig);
+}
+```
+
 By default the API will select the first tenant in the list , if you only have 1 authorized then all is fine otherwise ensure you select it (either allow your user to choose or select it yourself
 
 ```c#
 // Find the Demo Company TenantID
-XeroAuth2API.Model.Tenant Tenant = xeroAPI.Tenants.Find(x => x.TenantName.ToLower() == "demo company (uk)");
-xeroAPI.TenantID = Tenant.TenantId.ToString(); // Ensure its selected
+Tenant Tenant = xeroAPI.Tenants.Find(x => x.TenantName.ToLower() == "demo company (uk)");
+xeroAPI.SelectedTenant = Tenant; // Ensure its selected
 ```
 
-To get started there are a few main classes.
+## There are a few main classes.
 
-* The LocalHttpListener class. This is a wrapper for the System.Net.HttpListener and is key to getting the code from Xero
+* The LocalHttpListener class. This is a wrapper for the System.Net.HttpListener and is key to getting the codes from Xero
 * oAuth2. This is the class that handles the Auth code flow and sets up the Listener. This is not directly exposed and will be used by the API class to do the work.
-* API. The main wrapper that keeps the access simple.
+* API. The main wrapper that keeps the access simple with sync calls instead of async calls.
 
 To get started you will just need two things to make calls to the Accounting Api. These are obtained by the oAuth2 Process
-* xero-tenant-id
+* tenantid
 * accessToken
 
 ## Features
+### Paging data
 * All API calls that implement the need to page the results (100 per API call to Xero) are automatically dealt with so you will get ALL records that you request regardless of how many are in Xero.
-* Simplified usage. 
-* More to follow
+* If you want a quick first page (collections of additional data like LineItems are not returned) just set the onlypage = -1
+
+### Others
+* Simplified usage. No need to worry about async calls
+* scopes are handled by a list enums
+* Exceptions are passed throuh from the Xero API
 
 ## Examples
 
@@ -83,6 +133,10 @@ Invoices
 ```c#
 var invoices = xeroAPI.Invoices();
 var singleinvcoice = xeroAPI.Invoice(invoices[5].InvoiceID.Value);
+```
+Quick first page of invoices
+```c#
+var invoices = xeroAPI.Invoices(null, null, -1);
 ```
 
 You can even create a record using a single call
