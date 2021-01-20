@@ -8,6 +8,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using XeroAuth2API.Model;
 
 
 namespace XeroAPI2Tests
@@ -20,7 +21,7 @@ namespace XeroAPI2Tests
 
         public static string ApplicationPath = System.IO.Directory.GetParent(System.Reflection.Assembly.GetEntryAssembly().Location).FullName;
 
-        XeroAuth2API.Model.XeroConfiguration XeroConfig = null;
+        XeroConfiguration XeroConfig = null;
         XeroAuth2API.API xeroAPI = null;
 
         public Form1()
@@ -33,12 +34,12 @@ namespace XeroAPI2Tests
             string tokendata = ReadTextFile("tokendata.txt");
             if (!string.IsNullOrEmpty(tokendata))
             {
-                XeroConfig = DeSerializeObject<XeroAuth2API.Model.XeroConfiguration>(tokendata);
+                XeroConfig = DeSerializeObject<XeroConfiguration>(tokendata);
             }
             else
             {
                 // Setup New Config
-                XeroConfig = new XeroAuth2API.Model.XeroConfiguration
+                XeroConfig = new XeroConfiguration
                 {
                     ClientID = XeroClientID,
                     CallbackUri = XeroCallbackUri,
@@ -155,7 +156,7 @@ namespace XeroAPI2Tests
             System.Diagnostics.Debug.WriteLine(e.MessageText);
 
             WriteLogFile($"{e.Status.ToString()} - {e.MessageText}", "APILog", true, true);
-            UpdateStatus($"{e.Status.ToString()} - {e.MessageText}", lstResults);
+           // UpdateStatus($"{e.Status.ToString()} - {e.MessageText}", lstResults); gets stuck due to invoke?!?!?!!?!?
         }
         public static void UpdateStatus(string sText, ListBox lstResults = null, bool bSameLine = false, bool bAdd = false)
         {
@@ -167,7 +168,7 @@ namespace XeroAPI2Tests
                 });
             }
             else
-            {                
+            {
                 if (lstResults != null)
                 {
                     // Passed in a ref to a list box so we can update this  s
@@ -337,5 +338,124 @@ namespace XeroAPI2Tests
             return Newtonsoft.Json.JsonConvert.DeserializeObject<TENTITY>(serializedString);
         }
         #endregion
+
+        private void button1_Click(object sender, EventArgs e)
+        {
+            xeroAPI.InitializeAPI(); // Init the API and pass in the old token - this will be refreshed if required
+
+            // Write the AccessToken to storage
+            string tokendata = SerializeObject(XeroConfig);
+            WriteTextFile("tokendata.txt", tokendata);
+
+            // Find the Demo Company TenantID
+            Tenant Tenant = xeroAPI.Tenants.Find(x => x.TenantName.ToLower() == "demo company (uk)");
+            //  XeroAuth2API.Model.Tenant Tenant = xeroAPI.Tenants[1];
+            xeroAPI.SelectedTenant = Tenant; // Ensure its selected
+
+
+            // Create a test invoice
+            var xeroContact = new Xero.NetStandard.OAuth2.Model.Accounting.Contact
+            {
+                Name = "Client Name",
+                FirstName = "Client",
+                LastName = "Name",
+                EmailAddress = "emailaddress@na.com",
+                IsCustomer = true,
+
+                AccountNumber = $"NEW-ACC",
+                // Website = "http://google.com"; // Currently the Zero API has this read only!!
+
+                Addresses = new List<Xero.NetStandard.OAuth2.Model.Accounting.Address>()
+            };
+
+            var address = new Xero.NetStandard.OAuth2.Model.Accounting.Address
+            {
+                AddressType = Xero.NetStandard.OAuth2.Model.Accounting.Address.AddressTypeEnum.STREET,
+                AddressLine1 = "Address1_Line1",
+                AddressLine2 = "Address1_Line2",
+                AddressLine3 = "Address1_Line3",
+                City = "Address1_City",
+                Region = "Address1_County",
+                PostalCode = "Address1_PostalCode",
+                Country = "Address1_Country"
+            };
+
+            xeroContact.Addresses.Add(address);
+
+            xeroContact.Phones = new List<Xero.NetStandard.OAuth2.Model.Accounting.Phone>();
+
+            var phone = new Xero.NetStandard.OAuth2.Model.Accounting.Phone();
+            phone.PhoneType = Xero.NetStandard.OAuth2.Model.Accounting.Phone.PhoneTypeEnum.DEFAULT;
+            phone.PhoneNumber = "Telephone1";
+
+            xeroContact.Phones.Add(phone);
+
+            var fax = new Xero.NetStandard.OAuth2.Model.Accounting.Phone();
+            fax.PhoneType = Xero.NetStandard.OAuth2.Model.Accounting.Phone.PhoneTypeEnum.FAX;
+            fax.PhoneNumber = "Fax";
+            xeroContact.Phones.Add(fax);
+
+            var mobile = new Xero.NetStandard.OAuth2.Model.Accounting.Phone();
+            mobile.PhoneType = Xero.NetStandard.OAuth2.Model.Accounting.Phone.PhoneTypeEnum.MOBILE;
+            mobile.PhoneNumber = "MobilePhone";
+            xeroContact.Phones.Add(mobile);
+
+            // Build the Invoice Body
+            var invoiceRecord = new Xero.NetStandard.OAuth2.Model.Accounting.Invoice();
+            invoiceRecord.Contact = xeroContact;
+            invoiceRecord.Date = DateTime.Now;
+            invoiceRecord.DueDate = DateTime.Now.AddDays(30);
+            invoiceRecord.Status = Xero.NetStandard.OAuth2.Model.Accounting.Invoice.StatusEnum.DRAFT;
+            invoiceRecord.LineAmountTypes = Xero.NetStandard.OAuth2.Model.Accounting.LineAmountTypes.Exclusive;
+
+            invoiceRecord.Type = Xero.NetStandard.OAuth2.Model.Accounting.Invoice.TypeEnum.ACCREC;
+            invoiceRecord.Reference = $"oAuth2/Testing";
+            invoiceRecord.LineItems = new List<Xero.NetStandard.OAuth2.Model.Accounting.LineItem>();
+
+            // Line Item 1
+            // Create the Tracking Item
+            var tracking = new List<Xero.NetStandard.OAuth2.Model.Accounting.LineItemTracking>();
+            tracking.Add(new Xero.NetStandard.OAuth2.Model.Accounting.LineItemTracking { Name = "Region", Option = "Eastside" });
+
+            Xero.NetStandard.OAuth2.Model.Accounting.LineItem lineItem = new Xero.NetStandard.OAuth2.Model.Accounting.LineItem
+            {
+                Description = $"Product Item 1{Environment.NewLine}Additional Description text",
+                Quantity = 1,
+                UnitAmount = 123m,
+                LineAmount = 123m,
+                TaxAmount = 123m * .20m,
+                AccountCode = "200",
+                Tracking = tracking
+            };
+
+            invoiceRecord.LineItems.Add(lineItem); // Add the line item to the invoice object
+
+            // Line Item 2
+            // Create the Tracking Item
+            tracking = new List<Xero.NetStandard.OAuth2.Model.Accounting.LineItemTracking>();
+            tracking.Add(new Xero.NetStandard.OAuth2.Model.Accounting.LineItemTracking { Name = "Region", Option = "South" });
+
+            Xero.NetStandard.OAuth2.Model.Accounting.LineItem lineItem2 = new Xero.NetStandard.OAuth2.Model.Accounting.LineItem
+            {
+                Description = $"Product Item 2{Environment.NewLine}Additional Description text2",
+                Quantity = 2,
+                UnitAmount = 456m,
+                LineAmount = 456m * 2,
+                TaxAmount = (456m * 2) * .20m,
+                AccountCode = "200",
+                Tracking = tracking
+            };
+
+            invoiceRecord.LineItems.Add(lineItem2); // Add the line item to the invoice object             
+
+            if (invoiceRecord.ValidationErrors == null || invoiceRecord.ValidationErrors.Count == 0)
+            {
+                var createdInv = xeroAPI.CreateInvoice(invoiceRecord);
+                if (createdInv.InvoiceID != Guid.Empty)
+                {
+                    System.Diagnostics.Debug.WriteLine("Created New Invoice");
+                }
+            }
+        }
     }
 }
