@@ -93,11 +93,7 @@ namespace XeroAuth2API
         public API()
         {
             _authClient = new oAuth2();
-            _authClient.ParentAPI = this;
-            if (XeroConfig.AutoSelectTenant == null)
-            {
-                XeroConfig.AutoSelectTenant = true;
-            }
+            _authClient.ParentAPI = this;           
             // Setup the reference to the core wrapper
             AccountingApi.APICore = this;
             AssetApi.APICore = this;
@@ -112,7 +108,7 @@ namespace XeroAuth2API
             }
             if (config != null)
             {
-                XeroConfig = config;
+                XeroConfig = config;               
             }
             if (XeroConfig.AutoSelectTenant == null)
             {
@@ -129,6 +125,8 @@ namespace XeroAuth2API
             AccountingApi.APICore = this;
             AssetApi.APICore = this;
             ProjectApi.APICore = this;
+
+
         }
 
         public void InitializeAPI()
