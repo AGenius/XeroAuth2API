@@ -14,12 +14,12 @@ namespace XeroAuth2API
     {
         public Uri callBackUri { get; set; } // The Call Back Uri - the port and path will be extracted 
 
-        private HttpListener Listener = null;// Holder for the main listener
+        private HttpListener Listener = null; // Holder for the main listener
 
-        private bool _keepGoing = true;//A flag to specify when we need to stop
+        private bool _keepGoing = true; //A flag to specify when we need to stop
 
-        private System.Threading.Tasks.Task _mainLoop;//Keep the task in a variable to keep it alive
-        public Model.XeroConfiguration config { get; set; }// Hold the configuration object 
+        private System.Threading.Tasks.Task _mainLoop; //Keep the task in a variable to keep it alive
+        public Model.XeroConfiguration config { get; set; } // Hold the configuration object 
 
         #region Event
         public class LocalHttpListenerEventArgs : EventArgs
