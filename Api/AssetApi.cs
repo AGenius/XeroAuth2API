@@ -1,9 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
-using XeroAuth2API.Model;
 using Xero.NetStandard.OAuth2.Model.Asset;
 
 namespace XeroAuth2API.Api

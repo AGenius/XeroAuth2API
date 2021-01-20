@@ -1,7 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 using Xero.NetStandard.OAuth2.Model.Accounting;
 
@@ -24,7 +22,7 @@ namespace XeroAuth2API.Api
         /// <param name="ModifiedSince">Only records created or modified since this timestamp will be returned (optional)</param>
         /// <param name="order">Order by an any element (optional)</param>
         /// <returns>List of Accounts</returns>
-        public List<Account> Accounts(string filter = null, DateTime? ModifiedSince = null, string order = null)
+        public List<Account> Accounts(string filter = null, string order = null, DateTime? ModifiedSince = null)
         {
             APICore.onStatusUpdates("Fetch Accounts", XeroEventStatus.Log);
             try
@@ -44,6 +42,80 @@ namespace XeroAuth2API.Api
             }
 
             return null;
+        }
+        /// <summary>
+        /// Provide a way to fetch Accounts using a collection of properties 
+        /// </summary>
+        /// <param name="Status">List of Status Enums - Xero.NetStandard.OAuth2.Model.Accounting.Account.StatusEnum </param>
+        /// <param name="Type">List of AccountType Enums - Xero.NetStandard.OAuth2.Model.Accounting.AccountType</param>
+        /// <param name="AccountClass">List of ClassEnum Enums - Xero.NetStandard.OAuth2.Model.Accounting.Account.ClassEnum</param>
+        /// <param name="BankAccountType">List of BankAccountTypeEnum Enums - Xero.NetStandard.OAuth2.Model.Accounting.Account.BankAccountTypeEnum</param>
+        /// <param name="TaxType">List of TaxType Enums - Xero.NetStandard.OAuth2.Model.Accounting.TaxType</param>
+        /// <returns>List of Matching Records</returns>
+        public List<Account> Accounts(List<Account.StatusEnum> Status, string order = null,
+            List<AccountType> Type = null,
+            List<Account.ClassEnum> AccountClass = null,
+            List<Account.BankAccountTypeEnum> BankAccountType = null,
+            List<TaxType> TaxType = null)
+        {
+            // Build the where from List collections
+            string where = Common.BuildFilterString("Status", Status);
+
+            if (Type != null && Type.Count > 0)
+            {
+                where += " && " + Common.BuildFilterString("Type", Type);
+            }
+            if (AccountClass != null && AccountClass.Count > 0)
+            {
+                where += " && " + Common.BuildFilterString("Class", AccountClass);
+            }
+            if (BankAccountType != null && BankAccountType.Count > 0)
+            {
+                where += " && " + Common.BuildFilterString("BankAccountType", BankAccountType);
+            }
+            if (TaxType != null && TaxType.Count > 0)
+            {
+                where += " && " + Common.BuildFilterString("TaxType", TaxType);
+            }
+
+            return Accounts(where, order);
+        }
+        /// <summary>
+        /// Provide a way to fetch Accounts using a single Property
+        /// </summary>
+        /// <param name="Status">Status Enum - Xero.NetStandard.OAuth2.Model.Accounting.Account.StatusEnum </param>
+        /// <param name="Type">AccountType Enum - Xero.NetStandard.OAuth2.Model.Accounting.AccountType</param>
+        /// <param name="AccountClass">ClassEnum Enum - Xero.NetStandard.OAuth2.Model.Accounting.Account.ClassEnum</param>
+        /// <param name="BankAccountType">BankAccountTypeEnum Enum - Xero.NetStandard.OAuth2.Model.Accounting.Account.BankAccountTypeEnum</param>
+        /// <param name="TaxType">TaxType Enum - Xero.NetStandard.OAuth2.Model.Accounting.TaxType</param>
+        /// <returns>List of Matching Records</returns>
+        public List<Account> Accounts(Account.StatusEnum Status, string order = null,
+            AccountType? Type = null,
+            Account.ClassEnum? AccountClass = null,
+            Account.BankAccountTypeEnum? BankAccountType = null,
+            TaxType? TaxType = null)
+        {
+            // Build the where from List collections
+            string where = Common.BuildFilterString("Status", Status);
+
+            if (Type != null)
+            {
+                where += " && " + Common.BuildFilterString("Type", Type);
+            }
+            if (AccountClass != null)
+            {
+                where += " && " + Common.BuildFilterString("Class", AccountClass);
+            }
+            if (BankAccountType != null)
+            {
+                where += " && " + Common.BuildFilterString("BankAccountType", BankAccountType);
+            }
+            if (TaxType != null)
+            {
+                where += " && " + Common.BuildFilterString("TaxType", TaxType);
+            }
+
+            return Accounts(where, order);
         }
         /// <summary>
         /// Retreive a single Account record 
@@ -561,11 +633,51 @@ namespace XeroAuth2API.Api
             return null;
         }
         /// <summary>
+        /// Provide a way to fetch Contacts using a single Property
+        /// </summary>
+        /// <param name="Status">List of Status Enum - Xero.NetStandard.OAuth2.Model.Accounting.Contact.StatusEnum </param>
+        /// <param name="order">Order by an any element (optional)</param>
+        /// <param name="AddressType">List of AddressType Enum - Xero.NetStandard.OAuth2.Model.Accounting.Address.AddressType</param>       
+        /// <returns>List of Matching Records</returns>
+        public List<Contact> Contacts(List<Contact.ContactStatusEnum> Status, string order = null,
+            List<Address.AddressTypeEnum> AddressType = null)
+        {
+            // Build the where from List collections
+            string where = Common.BuildFilterString("Status", Status);
+
+            if (AddressType != null && AddressType.Count > 0)
+            {
+                where += " && " + Common.BuildFilterString("AddressType", AddressType);
+            }
+
+            return Contacts(where, order);
+        }
+        /// <summary>
+        /// Provide a way to fetch Contacts using a single Property
+        /// </summary>
+        /// <param name="Status">Status Enum - Xero.NetStandard.OAuth2.Model.Accounting.Contact.StatusEnum </param>
+        /// <param name="order">Order by an any element (optional)</param>
+        /// <param name="AddressType">AddressType Enum - Xero.NetStandard.OAuth2.Model.Accounting.Address.AddressType</param>       
+        /// <returns>List of Matching Records</returns>
+        public List<Contact> Contacts(Contact.ContactStatusEnum Status, string order = null,
+        Address.AddressTypeEnum? AddressType = null)
+        {
+            // Build the where from enums
+            string where = Common.BuildFilterString("Status", Status);
+
+            if (AddressType != null)
+            {
+                where += " && " + Common.BuildFilterString("AddressType", AddressType);
+            }
+
+            return Contacts(where, order);
+        }
+        /// <summary>
         /// Return a single contact
         /// </summary>
         /// <param name="contactID">Unique identifier for the record</param>
         /// <returns>A contact reocrd</returns>
-        public Contact GetContact(Guid contactID)
+        public Contact Contact(Guid contactID)
         {
             if (contactID == null)
             {
@@ -1130,8 +1242,10 @@ namespace XeroAuth2API.Api
         /// <param name="createdByMyApp">When set to true you&#39;ll only retrieve Invoices created by your app (optional)</param>
         /// <param name="unitdp">(Unit Decimal Places) You can opt in to use four decimal places for unit amounts (optional)</param>
         /// <returns></returns>
-        public List<Invoice> Invoices(string filter = null, string order = null, int? onlypage = null, DateTime? ModifiedSince = null, List<Guid> iDs = null, List<string> invoiceNumbers = null,
-            List<Guid> contactIDs = null, List<string> statuses = null, bool? includeArchived = null, bool? createdByMyApp = null, int? unitdp = null)
+        public List<Invoice> Invoices(string filter = null, string order = null, int? onlypage = null, DateTime? ModifiedSince = null, List<Guid> iDs = null,
+            List<string> invoiceNumbers = null,
+            List<Guid> contactIDs = null,
+            List<string> statuses = null, bool? includeArchived = null, bool? createdByMyApp = null, int? unitdp = null)
         {
             int? page = 1;
             if (onlypage.HasValue)
@@ -1165,6 +1279,60 @@ namespace XeroAuth2API.Api
             }
 
             return null;
+        }
+        /// <summary>
+        /// Return a list of Invoices using enums
+        /// </summary>
+        /// <param name="StatusEnum">List of StatusEnum Enum - Xero.NetStandard.OAuth2.Model.Accounting.Invoice.StatusEnum </param>        
+        /// <param name="FromDate">DateTime - Invoices dated from this value</param>   
+        /// <param name="ToDate">DateTime - Invoices dated opto this value</param>           
+        /// <param name="order">Order by an any element (optional)</param>
+        /// <returns>List of Invoices</returns>
+        public List<Invoice> Invoices(List<Invoice.StatusEnum> Status, DateTime? FromDate = null, DateTime? ToDate = null, string order = null)
+        {
+            // Build the where from List collections
+            string where = Common.BuildFilterString("Status", Status);
+            // Add the Date Range to the filter string
+
+            if (FromDate.HasValue)
+            {
+                // Remove the Time Portion when adding to filter
+                where += " && " + $"Date >= DateTime ({FromDate.Value.Year},{FromDate.Value.Month},{FromDate.Value.Day}) ";
+            }
+            if (ToDate.HasValue)
+            {
+                // Remove the Time Portion when adding to filter
+                where += " && " + $"Date <= DateTime ({ToDate.Value.Year},{ToDate.Value.Month},{ToDate.Value.Day}) ";
+            }
+
+            return Invoices(where, order);
+        }
+        /// <summary>
+        /// Return a list of Invoices using enums
+        /// </summary>
+        /// <param name="StatusEnum">StatusEnum Enum - Xero.NetStandard.OAuth2.Model.Accounting.Invoice.StatusEnum </param>        
+        /// <param name="FromDate">DateTime - Invoices dated from this value</param>   
+        /// <param name="ToDate">DateTime - Invoices dated opto this value</param>           
+        /// <param name="order">Order by an any element (optional)</param>
+        /// <returns>List of Invoices</returns>
+        public List<Invoice> Invoices(Invoice.StatusEnum Status, DateTime? FromDate = null, DateTime? ToDate = null, string order = null)
+        {
+            // Build the where from List collections
+            string where = Common.BuildFilterString("Status", Status);
+            // Add the Date Range to the filter string
+
+            if (FromDate.HasValue)
+            {
+                // Remove the Time Portion when adding to filter
+                where += " && " + $"Date >= DateTime ({FromDate.Value.Year},{FromDate.Value.Month},{FromDate.Value.Day}) ";
+            }
+            if (ToDate.HasValue)
+            {
+                // Remove the Time Portion when adding to filter
+                where += " && " + $"Date <= DateTime ({ToDate.Value.Year},{ToDate.Value.Month},{ToDate.Value.Day}) ";
+            }
+
+            return Invoices(where, order);
         }
         /// <summary>
         /// Return a single Invoice Record 
@@ -1857,11 +2025,11 @@ namespace XeroAuth2API.Api
         /// <summary>
         /// Retrieve a list of TrackingCategory Records
         /// </summary>
-        /// <param name="filter">a filter to limit the returned records (leave empty for all records)</param>
+        /// <param name="filter">a filter to limit the returned records (leave empty for all records) - Default is Status = Active</param>
         /// <param name="order">Order by an any element (optional)</param>
         /// <param name="includeArchived"></param>
         /// <returns>List of TrackingCategory Records</returns>
-        public List<TrackingCategory> TrackingCategories(string filter = null, string order = null, bool? includeArchived = null)
+        public List<TrackingCategory> TrackingCategories(string filter = "Status=\"ACTIVE\"", string order = null, bool? includeArchived = null)
         {
             try
             {
