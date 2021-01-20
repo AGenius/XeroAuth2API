@@ -6,15 +6,21 @@ using System.Text;
 using System.Threading.Tasks;
 using XeroAuth2API.Model;
 
-
-
 namespace XeroAuth2API
 {
+    /// <summary>
+    /// This is the Core of the API Wrapper. this class holds the configurations, the sub Api endpoints and events
+    /// </summary>
     public class API
     {
+        public string Version
+        {
+            get
+            {
+                return "This API Version : 1.2021.0120 - Compatible with Xero-Standard API : 3.12.1";
+            }
+        }
         oAuth2 _authClient = null;
-        Xero.NetStandard.OAuth2.Api.AccountingApi xeroAPI_A = new Xero.NetStandard.OAuth2.Api.AccountingApi();
-        Xero.NetStandard.OAuth2.Api.ProjectApi xeroAPI_P = new Xero.NetStandard.OAuth2.Api.ProjectApi();
 
         public XeroConfiguration XeroConfig { get; set; }
         /// <summary>
@@ -61,7 +67,7 @@ namespace XeroAuth2API
             }
         }
 
-        // Setup the API objects
+        // Setup the sub API objects
         public Api.AccountingApi AccountingApi = new Api.AccountingApi();
         public Api.AssetApi AssetApi = new Api.AssetApi();
         public Api.ProjectApi ProjectApi = new Api.ProjectApi();
@@ -98,6 +104,7 @@ namespace XeroAuth2API
             AccountingApi.APICore = this;
             AssetApi.APICore = this;
             ProjectApi.APICore = this;
+            
         }
         public API(XeroConfiguration config = null)
         {
@@ -173,24 +180,6 @@ namespace XeroAuth2API
                 .Replace('/', '_');
             return codeVerifier;
         }
-
-
-
-
-
-         
-
-
-
-
-
-
-
-
-
-
-
-
 
     }
 }
