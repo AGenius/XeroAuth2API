@@ -1,12 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
-using System.Drawing;
 using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 using XeroAuth2API.Model;
 
@@ -44,11 +38,10 @@ namespace XeroAPI2Tests
                     ClientID = XeroClientID,
                     CallbackUri = XeroCallbackUri,
                     // Add them this way or see below
-                    //Scopes = new List<XeroAuth2API.XeroScope> { XeroAuth2API.XeroScope.openid, XeroAuth2API.XeroScope.profile, XeroAuth2API.XeroScope.email, XeroAuth2API.XeroScope.accounting_contacts },
+                    //Scopes = new List<XeroAuth2API.XeroScope> { XeroAuth2API.XeroScope.accounting_contacts, XeroAuth2API.XeroScope.accounting_transactions },
                     State = XeroState, // Optional - Not needed for a desktop app
                     codeVerifier = null // Code verifier will be generated if empty
                 };
-
                 XeroConfig.AddScope(XeroAuth2API.XeroScope.all);
                 // Or add idividualy
                 //XeroConfig.AddScope(XeroAuth2API.XeroScope.files);
@@ -78,72 +71,87 @@ namespace XeroAPI2Tests
             WriteTextFile("tokendata.txt", tokendata);
 
             // Find the Demo Company TenantID
-            XeroAuth2API.Model.Tenant Tenant = xeroAPI.Tenants.Find(x => x.TenantName.ToLower() == "demo company (uk)");
+            Tenant Tenant = xeroAPI.Tenants.Find(x => x.TenantName.ToLower() == "demo company (uk)");
             //  XeroAuth2API.Model.Tenant Tenant = xeroAPI.Tenants[1];
             xeroAPI.SelectedTenant = Tenant; // Ensure its selected
 
             // var assettypes = xeroAPI.AssetTypes();
 
             //var contacts = xeroAPI.Contacts();
+            List<Xero.NetStandard.OAuth2.Model.Accounting.Account.StatusEnum> status = new List<Xero.NetStandard.OAuth2.Model.Accounting.Account.StatusEnum>();
+            status.Add(Xero.NetStandard.OAuth2.Model.Accounting.Account.StatusEnum.ACTIVE);
+            status.Add(Xero.NetStandard.OAuth2.Model.Accounting.Account.StatusEnum.ARCHIVED);
 
-            //try
-            //{
-            //    var assets = xeroAPI.Assets(Xero.NetStandard.OAuth2.Model.Asset.AssetStatusQueryParam.REGISTERED);
-            //}
-            //catch (Exception ex)
-            //{
-            //    // Deal with the error
-            //    int stop = 0;
-            //}
+            List<Xero.NetStandard.OAuth2.Model.Accounting.AccountType> atypes = new List<Xero.NetStandard.OAuth2.Model.Accounting.AccountType>();
+            atypes.Add(Xero.NetStandard.OAuth2.Model.Accounting.AccountType.OVERHEADS);
+            atypes.Add(Xero.NetStandard.OAuth2.Model.Accounting.AccountType.BANK);
+
+            //var accounts = xeroAPI.AccountingApi.Accounts(status, "Name", atypes); // Return List<Xero.NetStandard.OAuth2.Model.Accounting.Account>
+           // var accounts = xeroAPI.AccountingApi.Accounts(Xero.NetStandard.OAuth2.Model.Accounting.Account.StatusEnum.ACTIVE, "Name"); // Return List<Xero.NetStandard.OAuth2.Model.Accounting.Account>
+
+            //var  accounts = xeroAPI.AccountingApi.Accounts(); // Return List<Xero.NetStandard.OAuth2.Model.Accounting.Account>
+
+            //var singleaccount = xeroAPI.AccountingApi.Account(accounts[5].AccountID.Value);// return Xero.NetStandard.OAuth2.Model.Accounting.Account
+
+            try
+            {
+
+               // var assets = xeroAPI.AssetApi.Assets(Xero.NetStandard.OAuth2.Model.Asset.AssetStatusQueryParam.REGISTERED);
+            }
+            catch (Exception ex)
+            {
+                // Deal with the error
+                int stop = 0;
+            }
 
 
 
-            //var POrders = xeroAPI.PurchaseOrders();
+            //var POrders = xeroAPI.AccountingApi.PurchaseOrders();
             //if (POrders != null && POrders.Count > 0)
             //{
-            //     var singlePO = xeroAPI.PurchaseOrder(POrders[0].PurchaseOrderID.Value);
+            //     var singlePO = xeroAPI.AccountingApi.PurchaseOrder(POrders[0].PurchaseOrderID.Value);
             //}
 
-            //var users = xeroAPI.Users();
+            //var users = xeroAPI.AccountingApi.Users();
 
 
-            //var trackingcats = xeroAPI.TrackingCategories();
+            //var trackingcats = xeroAPI.AccountingApi.TrackingCategories();
             //if (trackingcats != null && trackingcats.Count > 0)
             //{
-            //    var singlecat = xeroAPI.TrackingCategory(trackingcats[0].TrackingCategoryID.Value);
+            //    var singlecat = xeroAPI.AccountingApi.TrackingCategory(trackingcats[0].TrackingCategoryID.Value);
             //}
 
 
-            //var banktrans = xeroAPI.BankTransactions();
-            //var singleptran = xeroAPI.BankTransaction(banktrans[3].BankTransactionID.Value);
+            //var banktrans = xeroAPI.AccountingApi.BankTransactions();
+            //var singleptran = xeroAPI.AccountingApi.BankTransaction(banktrans[3].BankTransactionID.Value);
 
-            //var banktransfers = xeroAPI.BankTransfers();
+            //var banktransfers = xeroAPI.AccountingApi.BankTransfers();
             //if (banktransfers != null && banktransfers.Count > 0)
             //{
-            //    var singlebanktransfer = xeroAPI.BankTransaction(banktransfers[3].BankTransferID.Value);
+            //    var singlebanktransfer = xeroAPI.AccountingApi.BankTransaction(banktransfers[3].BankTransferID.Value);
             //}
 
-            //var taxrates = xeroAPI.TaxRates();
+            //var taxrates = xeroAPI.AccountingApi.TaxRates();
             //if (taxrates != null && taxrates.Count > 0)
             //{
-            //    var singletaxrate = xeroAPI.TaxRate(taxrates[3].Name);
+            //    var singletaxrate = xeroAPI.AccountingApi.TaxRate(taxrates[3].Name);
             //}
 
 
-            //var products = xeroAPI.Items();
-            //var singleproduct = xeroAPI.Item(products[3].ItemID.Value);
+            //var products = xeroAPI.AccountingApi.Items();
+            //var singleproduct = xeroAPI.AccountingApi.Item(products[3].ItemID.Value);
 
 
-            var invoices = xeroAPI.Invoices();
-            var singleinvoice = xeroAPI.Invoice(invoices[5].InvoiceID.Value);
+            //var invoices = xeroAPI.AccountingApi.Invoices(null, null, -1);
+            var invoices = xeroAPI.AccountingApi.Invoices( Xero.NetStandard.OAuth2.Model.Accounting.Invoice.StatusEnum.AUTHORISED,new DateTime(2021,1,1));
+            var singleinvoice = xeroAPI.AccountingApi.Invoice(invoices[5].InvoiceID.Value);
 
-            //var accounts = xeroAPI.Accounts(); // Return List<Xero.NetStandard.OAuth2.Model.Accounting.Account>
-            //var singleaccount = xeroAPI.Account(accounts[5].AccountID.Value);// return Xero.NetStandard.OAuth2.Model.Accounting.Account
 
-            //var quotes = xeroAPI.Quotes();
+
+            //var quotes = xeroAPI.AccountingApi.Quotes();
             //if (quotes != null && quotes.Count > 0)
             //{
-            //    var singlequote = xeroAPI.Quote(quotes[0].QuoteID.Value);// return Xero.NetStandard.OAuth2.Model.Accounting.Quote
+            //    var singlequote = xeroAPI.AccountingApi.Quote(quotes[0].QuoteID.Value);// return Xero.NetStandard.OAuth2.Model.Accounting.Quote
             //}
 
 
@@ -156,7 +164,7 @@ namespace XeroAPI2Tests
             System.Diagnostics.Debug.WriteLine(e.MessageText);
 
             WriteLogFile($"{e.Status.ToString()} - {e.MessageText}", "APILog", true, true);
-           // UpdateStatus($"{e.Status.ToString()} - {e.MessageText}", lstResults); gets stuck due to invoke?!?!?!!?!?
+            // UpdateStatus($"{e.Status.ToString()} - {e.MessageText}", lstResults); gets stuck due to invoke?!?!?!!?!?
         }
         public static void UpdateStatus(string sText, ListBox lstResults = null, bool bSameLine = false, bool bAdd = false)
         {
@@ -450,7 +458,7 @@ namespace XeroAPI2Tests
 
             if (invoiceRecord.ValidationErrors == null || invoiceRecord.ValidationErrors.Count == 0)
             {
-                var createdInv = xeroAPI.CreateInvoice(invoiceRecord);
+                var createdInv = xeroAPI.AccountingApi.CreateInvoice(invoiceRecord);
                 if (createdInv.InvoiceID != Guid.Empty)
                 {
                     System.Diagnostics.Debug.WriteLine("Created New Invoice");
