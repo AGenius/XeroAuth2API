@@ -9,7 +9,7 @@ namespace XeroAPI2Tests
 {
     public partial class Form1 : Form
     {
-        string XeroClientID = "95D14A0CC327455D889526A7D60E1517";//"Your Client ID";
+        string XeroClientID = "";//"Your Client ID";
         Uri XeroCallbackUri = new Uri("http://localhost:8888/callback");
         string XeroState = "123456";
         string tenantName = "business technology partners limited";
