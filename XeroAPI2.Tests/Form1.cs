@@ -12,7 +12,7 @@ namespace XeroAPI2Tests
         string XeroClientID = "";//"Your Client ID";
         Uri XeroCallbackUri = new Uri("http://localhost:8888/callback");
         string XeroState = "123456";
-        string tenantName = "business technology partners limited";
+        string tenantName = "demo company (uk)";
 
         public static string ApplicationPath = System.IO.Directory.GetParent(System.Reflection.Assembly.GetEntryAssembly().Location).FullName;
 
