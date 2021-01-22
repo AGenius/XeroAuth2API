@@ -1078,6 +1078,60 @@ namespace XeroAuth2API.Api
             return null;
         }
         /// <summary>
+        /// Return a list of Credit Notes using enums
+        /// </summary>
+        /// <param name="StatusEnum">List of StatusEnum Enum - Xero.NetStandard.OAuth2.Model.Accounting.Invoice.StatusEnum </param>        
+        /// <param name="FromDate">DateTime - Invoices dated from this value</param>   
+        /// <param name="ToDate">DateTime - Invoices dated opto this value</param>           
+        /// <param name="order">Order by an any element (optional)</param>
+        /// <returns>List of Invoices</returns>
+        public List<CreditNote> Invoices(List<CreditNote.StatusEnum> Status, DateTime? FromDate = null, DateTime? ToDate = null, string order = null)
+        {
+            // Build the where from List collections
+            string where = Common.BuildFilterString("Status", Status);
+            // Add the Date Range to the filter string
+
+            if (FromDate.HasValue)
+            {
+                // Remove the Time Portion when adding to filter
+                where += " && " + $"Date >= DateTime ({FromDate.Value.Year},{FromDate.Value.Month},{FromDate.Value.Day}) ";
+            }
+            if (ToDate.HasValue)
+            {
+                // Remove the Time Portion when adding to filter
+                where += " && " + $"Date <= DateTime ({ToDate.Value.Year},{ToDate.Value.Month},{ToDate.Value.Day}) ";
+            }
+
+            return CreditNotes(where, order);
+        }
+        /// <summary>
+        /// Return a list of Credit Notes using enums
+        /// </summary>
+        /// <param name="StatusEnum">StatusEnum Enum - Xero.NetStandard.OAuth2.Model.Accounting.Invoice.StatusEnum </param>        
+        /// <param name="FromDate">DateTime - Invoices dated from this value</param>   
+        /// <param name="ToDate">DateTime - Invoices dated opto this value</param>           
+        /// <param name="order">Order by an any element (optional)</param>
+        /// <returns>List of Invoices</returns>
+        public List<CreditNote> Invoices(CreditNote.StatusEnum Status, DateTime? FromDate = null, DateTime? ToDate = null, string order = null)
+        {
+            // Build the where from List collections
+            string where = Common.BuildFilterString("Status", Status);
+            // Add the Date Range to the filter string
+
+            if (FromDate.HasValue)
+            {
+                // Remove the Time Portion when adding to filter
+                where += " && " + $"Date >= DateTime ({FromDate.Value.Year},{FromDate.Value.Month},{FromDate.Value.Day}) ";
+            }
+            if (ToDate.HasValue)
+            {
+                // Remove the Time Portion when adding to filter
+                where += " && " + $"Date <= DateTime ({ToDate.Value.Year},{ToDate.Value.Month},{ToDate.Value.Day}) ";
+            }
+
+            return CreditNotes(where, order);
+        }
+        /// <summary>
         /// Return a single Credit Note
         /// </summary>
         /// <param name="creditNoteID">Unique identifier for the record</param>
