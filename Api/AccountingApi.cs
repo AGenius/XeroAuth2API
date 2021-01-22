@@ -588,6 +588,15 @@ namespace XeroAuth2API.Api
 
         #region Contacts
         /// <summary>
+        /// Provide an Enum for the Contact Type
+        /// </summary>
+        public enum ContactType
+        {
+            isCustomer,
+            isSupplier,
+            Either
+        }
+        /// <summary>
         /// Return a list of Contacts
         /// </summary>
         /// <param name="filter">Filter by an any element (optional)</param>
@@ -660,7 +669,8 @@ namespace XeroAuth2API.Api
         /// <param name="AddressType">AddressType Enum - Xero.NetStandard.OAuth2.Model.Accounting.Address.AddressType</param>       
         /// <returns>List of Matching Records</returns>
         public List<Contact> Contacts(Contact.ContactStatusEnum Status, string order = null,
-        Address.AddressTypeEnum? AddressType = null)
+        Address.AddressTypeEnum? AddressType = null, 
+        ContactType contactType = ContactType.Either)
         {
             // Build the where from enums
             string where = Common.BuildFilterString("Status", Status);
@@ -668,6 +678,15 @@ namespace XeroAuth2API.Api
             if (AddressType != null)
             {
                 where += " && " + Common.BuildFilterString("AddressType", AddressType);
+            }
+            switch (contactType)
+            {
+                case ContactType.isCustomer:
+                    where += " && isCustomer=True";
+                    break;
+                case ContactType.isSupplier:
+                    where += " && isSupplier=True";
+                    break;                
             }
 
             return Contacts(where, order);

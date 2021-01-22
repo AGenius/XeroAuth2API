@@ -181,7 +181,7 @@ namespace XeroAPI2Tests
         {
             xeroAPI.InitializeAPI();
                        
-            var contacts = xeroAPI.AccountingApi.Contacts();
+            var contacts = xeroAPI.AccountingApi.Contacts( Xero.NetStandard.OAuth2.Model.Accounting.Contact.ContactStatusEnum.ACTIVE);
             UpdateStatus($"Found {contacts.Count} Contacts");
 
             List<Xero.NetStandard.OAuth2.Model.Accounting.Account.StatusEnum> status = new List<Xero.NetStandard.OAuth2.Model.Accounting.Account.StatusEnum>();
