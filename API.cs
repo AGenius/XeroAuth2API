@@ -70,6 +70,7 @@ namespace XeroAuth2API
         public Api.AssetApi AssetApi = new Api.AssetApi();
         public Api.ProjectApi ProjectApi = new Api.ProjectApi();
 
+        
         #region Event
 
         public class LogMessage
@@ -128,8 +129,11 @@ namespace XeroAuth2API
 
 
         }
-
-        public void InitializeAPI()
+        /// <summary>
+        /// Setup the API and refresh token or re-authorise if needed/requested
+        /// </summary>
+        /// <param name="ForceReAuth">This will force the Auth login again-Needed if you want to add a new tenant</param>
+        public void InitializeAPI(bool ForceReAuth = false)
         {
             if (XeroConfig == null)
             {

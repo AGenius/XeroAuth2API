@@ -41,12 +41,12 @@ namespace XeroAuth2API
         /// </summary>
         /// <param name="TokenData"></param>
         /// <returns>The AccessToken record (refreshed version if it was expired prior)</returns>
-        public void InitializeoAuth2(int? timeout = 60)
+        public void InitializeoAuth2(int? timeout = 60, bool ForceReAuth = false)
         {
+            bool doAuth = false;
             if (XeroConfig == null)
             {
                 throw new ArgumentNullException("Missing XeroConfig");
-
             }
             if (string.IsNullOrEmpty(XeroConfig.ClientID))
             {
@@ -58,14 +58,14 @@ namespace XeroAuth2API
             }
 
             Timeout = timeout;
-
+            if (ForceReAuth)
+            {
+                doAuth = true;                
+            }
             // Check Scope change. If changed then we need to re-authenticate
             if (XeroConfig.XeroAPIToken.RequestedScopes != null && XeroConfig.Scope != XeroConfig.XeroAPIToken.RequestedScopes)
             {
-                var task = Task.Run(() => BeginoAuth2Authentication());
-                task.Wait();
-                // XeroConfig.XeroAPIToken = task.Result;
-                return;
+                doAuth = true;
             }
             else
             {
@@ -82,12 +82,15 @@ namespace XeroAuth2API
                 if (string.IsNullOrEmpty(XeroConfig.XeroAPIToken.RefreshToken) ||
                     XeroConfig.XeroAPIToken.ExpiresAtUtc.AddDays(59) < DateTime.Now)
                 {
-                    var task = Task.Run(() => BeginoAuth2Authentication());
-                    task.Wait();
-                    //XeroConfig.XeroAPIToken = task.Result;
-                    return; // Return the resulting token
+                    doAuth = true;
                 }
             }
+            if (doAuth)
+            {
+                var task = Task.Run(() => BeginoAuth2Authentication());
+                task.Wait();
+            }
+
             onStatusUpdates("Token OK", XeroEventStatus.Success);
             return;
         }
@@ -295,11 +298,12 @@ namespace XeroAuth2API
             if (XeroConfig.StoreReceivedScope)
             {
                 newToken.RequestedScopes = tokens["scope"]?.ToString(); // Ensure we record the scope used
-            } else
+            }
+            else
             {
                 newToken.RequestedScopes = XeroConfig.Scope;
             }
-            
+
             return newToken;
         }
         #region JSON Serialization methods
