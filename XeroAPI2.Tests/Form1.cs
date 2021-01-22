@@ -4,21 +4,20 @@ using System.IO;
 using System.Windows.Forms;
 using XeroAuth2API.Model;
 
-
 namespace XeroAPI2Tests
 {
     public partial class Form1 : Form
     {
-        string XeroClientID = "";//"Your Client ID";
         Uri XeroCallbackUri = new Uri("http://localhost:8888/callback");
         string XeroState = "123456";
-        string tenantName = "your company";
+
+        string XeroClientID = "";//"Your Client ID";
+        string tenantName = "demo company (uk)";// "your company";
 
         public static string ApplicationPath = System.IO.Directory.GetParent(System.Reflection.Assembly.GetEntryAssembly().Location).FullName;
 
         XeroConfiguration XeroConfig = null;
         XeroAuth2API.API xeroAPI = null;
-
         public Form1()
         {
             InitializeComponent();
@@ -27,9 +26,15 @@ namespace XeroAPI2Tests
         {
             // We can ether save/restore the entire config or just the AccessToken element
             string tokendata = ReadTextFile("tokendata.txt");
+            UpdateStatus($"Loaded Token");
             if (!string.IsNullOrEmpty(tokendata))
             {
                 XeroConfig = DeSerializeObject<XeroConfiguration>(tokendata);
+                if (XeroConfig.ClientID != XeroClientID)
+                {
+                    XeroConfig.XeroAPIToken = null; // force re-auth as ID changed
+                    UpdateStatus($"Client ID Changed");
+                }
             }
             else
             {
@@ -61,12 +66,14 @@ namespace XeroAPI2Tests
 
             if (!SetupApi(tenantName))
             {
+                UpdateStatus($"Failed to Connect");
                 simpleButton1.Enabled = false;
                 button1.Enabled = false;
                 return; /// Stop doing anything else
             }
             else
             {
+                UpdateStatus($"Ready - Refresh required : {XeroConfig.XeroAPIToken.ExpiresAtUtc.ToString()}");
                 simpleButton1.Enabled = true;
                 button1.Enabled = true;
             }
@@ -77,6 +84,7 @@ namespace XeroAPI2Tests
         {
             string tokendata = SerializeObject(XeroConfig);
             WriteTextFile("tokendata.txt", tokendata);
+            UpdateStatus($"Config Saved");
         }
         private bool SetupApi(string tName)
         {
@@ -86,11 +94,13 @@ namespace XeroAPI2Tests
                 try
                 {
                     xeroAPI.InitializeAPI();
+                    UpdateStatus($"Initialized");
                     done = true;
                     SaveConfig(); // Ensure the new config (with new tokens are saved)
                 }
                 catch (Exception ex)
                 {
+                    UpdateStatus(ex.Message);
                     DialogResult rslt = MessageBox.Show(ex.Message + " Try Again?", "Error", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
                     if (rslt == DialogResult.No)
                     {
@@ -136,6 +146,10 @@ namespace XeroAPI2Tests
                         }
 
                     }
+                    else
+                    {
+                        done = true;
+                    }
                 } while (!done);
                 if (xeroAPI.SelectedTenant == null)
                 {
@@ -146,6 +160,7 @@ namespace XeroAPI2Tests
             }
             else
             {
+                UpdateStatus($"Failed");
                 MessageBox.Show("Failed to connect to Xero");
                 return false;
             }
@@ -153,99 +168,103 @@ namespace XeroAPI2Tests
 
         private void simpleButton1_Click(object sender, EventArgs e)
         {
-            xeroAPI.InitializeAPI(); // Init the API and pass in the old token - this will be refreshed if required
+            xeroAPI.InitializeAPI();
+                       
+            var contacts = xeroAPI.AccountingApi.Contacts();
+            UpdateStatus($"Found {contacts.Count} Contacts");
 
-            // Write the AccessToken to storage
-            string tokendata = SerializeObject(XeroConfig);
-            WriteTextFile("tokendata.txt", tokendata);
-
-            // Find the Demo Company TenantID
-            Tenant Tenant = xeroAPI.Tenants.Find(x => x.TenantName.ToLower() == "demo company (uk)");
-            //  XeroAuth2API.Model.Tenant Tenant = xeroAPI.Tenants[1];
-            xeroAPI.SelectedTenant = Tenant; // Ensure its selected
-
-            // var assettypes = xeroAPI.AssetTypes();
-
-            //var contacts = xeroAPI.Contacts();
             List<Xero.NetStandard.OAuth2.Model.Accounting.Account.StatusEnum> status = new List<Xero.NetStandard.OAuth2.Model.Accounting.Account.StatusEnum>();
-            status.Add(Xero.NetStandard.OAuth2.Model.Accounting.Account.StatusEnum.ACTIVE);
+            status.Add(Xero.NetStandard.OAuth2.Model.Accounting.Account.StatusEnum.DELETED);
             status.Add(Xero.NetStandard.OAuth2.Model.Accounting.Account.StatusEnum.ARCHIVED);
 
             List<Xero.NetStandard.OAuth2.Model.Accounting.AccountType> atypes = new List<Xero.NetStandard.OAuth2.Model.Accounting.AccountType>();
             atypes.Add(Xero.NetStandard.OAuth2.Model.Accounting.AccountType.OVERHEADS);
             atypes.Add(Xero.NetStandard.OAuth2.Model.Accounting.AccountType.BANK);
 
-            //var accounts = xeroAPI.AccountingApi.Accounts(status, "Name", atypes); // Return List<Xero.NetStandard.OAuth2.Model.Accounting.Account>
-            // var accounts = xeroAPI.AccountingApi.Accounts(Xero.NetStandard.OAuth2.Model.Accounting.Account.StatusEnum.ACTIVE, "Name"); // Return List<Xero.NetStandard.OAuth2.Model.Accounting.Account>
+            var accounts1 = xeroAPI.AccountingApi.Accounts(status, "Name", atypes); // Return List<Xero.NetStandard.OAuth2.Model.Accounting.Account>
+            if (accounts1 != null) UpdateStatus($"Found {accounts1.Count} Archived and Deleted Accounts with Type = Bank and Overheads ");
 
-            //var  accounts = xeroAPI.AccountingApi.Accounts(); // Return List<Xero.NetStandard.OAuth2.Model.Accounting.Account>
+            var accounts2 = xeroAPI.AccountingApi.Accounts(Xero.NetStandard.OAuth2.Model.Accounting.Account.StatusEnum.ACTIVE, "Name"); // Return List<Xero.NetStandard.OAuth2.Model.Accounting.Account>
+            UpdateStatus($"Found {accounts2.Count} Active Accounts");
 
-            //var singleaccount = xeroAPI.AccountingApi.Account(accounts[5].AccountID.Value);// return Xero.NetStandard.OAuth2.Model.Accounting.Account
+            var accounts3 = xeroAPI.AccountingApi.Accounts(); // Return List<Xero.NetStandard.OAuth2.Model.Accounting.Account>
+            UpdateStatus($"Found {accounts3.Count} Accounts (No Filter)");
 
+            var singleaccount = xeroAPI.AccountingApi.Account(accounts2[5].AccountID.Value);// return Xero.NetStandard.OAuth2.Model.Accounting.Account
+            UpdateStatus($"Single Account Name :{singleaccount}");
             try
             {
+                var assettypes = xeroAPI.AssetApi.AssetTypes();
+                if (assettypes != null) UpdateStatus($"Found {assettypes.Count} Asset Types");
 
-                // var assets = xeroAPI.AssetApi.Assets(Xero.NetStandard.OAuth2.Model.Asset.AssetStatusQueryParam.REGISTERED);
+                var assets = xeroAPI.AssetApi.Assets(Xero.NetStandard.OAuth2.Model.Asset.AssetStatusQueryParam.REGISTERED);
+                if (assets != null) UpdateStatus($"Found {assets.Count} Registered Assests");
             }
             catch (Exception ex)
             {
                 // Deal with the error
-                int stop = 0;
+                UpdateStatus($"Error fetching Assets {ex.Message}");
             }
 
+            var POrders = xeroAPI.AccountingApi.PurchaseOrders();
+            if (POrders != null) UpdateStatus($"Found {POrders.Count} Purchase Orders (no filtering)");
+            if (POrders != null && POrders.Count > 0)
+            {
+                var singlePO = xeroAPI.AccountingApi.PurchaseOrder(POrders[0].PurchaseOrderID.Value);
+                UpdateStatus($"Single Purchase Order :{singlePO}");
+            }
 
+            var users = xeroAPI.AccountingApi.Users();
+            UpdateStatus($"Found {users.Count} User Records");
 
-            //var POrders = xeroAPI.AccountingApi.PurchaseOrders();
-            //if (POrders != null && POrders.Count > 0)
-            //{
-            //     var singlePO = xeroAPI.AccountingApi.PurchaseOrder(POrders[0].PurchaseOrderID.Value);
-            //}
+            var trackingcats = xeroAPI.AccountingApi.TrackingCategories();
+            if (trackingcats != null) UpdateStatus($"Found {trackingcats.Count} Tracking Categories");
+            if (trackingcats != null && trackingcats.Count > 0)
+            {
+                var singlecat = xeroAPI.AccountingApi.TrackingCategory(trackingcats[0].TrackingCategoryID.Value);
+                UpdateStatus($"Single Tracking Category :{singlecat.Name}");
+            }
 
-            //var users = xeroAPI.AccountingApi.Users();
+            var banktrans = xeroAPI.AccountingApi.BankTransactions();
+            UpdateStatus($"Found {banktrans.Count} Bank Transactions");
+            var singlebtran = xeroAPI.AccountingApi.BankTransaction(banktrans[3].BankTransactionID.Value);
+            UpdateStatus($"Single Bank Transaction :{singlebtran}");
 
+            var banktransfers = xeroAPI.AccountingApi.BankTransfers();
+            if (banktransfers != null) UpdateStatus($"Found {banktransfers.Count} Bank Transfers");
+            if (banktransfers != null && banktransfers.Count > 0)
+            {
+                var singlebanktransfer = xeroAPI.AccountingApi.BankTransaction(banktransfers[3].BankTransferID.Value);
+                UpdateStatus($"Single Bank Transfer :{singlebanktransfer} ");
+            }
 
-            //var trackingcats = xeroAPI.AccountingApi.TrackingCategories();
-            //if (trackingcats != null && trackingcats.Count > 0)
-            //{
-            //    var singlecat = xeroAPI.AccountingApi.TrackingCategory(trackingcats[0].TrackingCategoryID.Value);
-            //}
+            var taxrates = xeroAPI.AccountingApi.TaxRates();
+            UpdateStatus($"Found {taxrates.Count} Tax Rates");
+            if (taxrates != null && taxrates.Count > 0)
+            {
+                var singletaxrate = xeroAPI.AccountingApi.TaxRate(taxrates[3].Name);
+                UpdateStatus($"Single Tax Rate :{singletaxrate}");
+            }
 
+            var products = xeroAPI.AccountingApi.Items();
+            UpdateStatus($"Found {products.Count} Items/Products");
+            var singleproduct = xeroAPI.AccountingApi.Item(products[3].ItemID.Value);
+            UpdateStatus($"Single Item/Product :{singleproduct}");
 
-            //var banktrans = xeroAPI.AccountingApi.BankTransactions();
-            //var singleptran = xeroAPI.AccountingApi.BankTransaction(banktrans[3].BankTransactionID.Value);
-
-            //var banktransfers = xeroAPI.AccountingApi.BankTransfers();
-            //if (banktransfers != null && banktransfers.Count > 0)
-            //{
-            //    var singlebanktransfer = xeroAPI.AccountingApi.BankTransaction(banktransfers[3].BankTransferID.Value);
-            //}
-
-            //var taxrates = xeroAPI.AccountingApi.TaxRates();
-            //if (taxrates != null && taxrates.Count > 0)
-            //{
-            //    var singletaxrate = xeroAPI.AccountingApi.TaxRate(taxrates[3].Name);
-            //}
-
-
-            //var products = xeroAPI.AccountingApi.Items();
-            //var singleproduct = xeroAPI.AccountingApi.Item(products[3].ItemID.Value);
-
-
-            //var invoices = xeroAPI.AccountingApi.Invoices(null, null, -1);
             var invoices = xeroAPI.AccountingApi.Invoices(Xero.NetStandard.OAuth2.Model.Accounting.Invoice.StatusEnum.AUTHORISED, new DateTime(2021, 1, 1));
+            UpdateStatus($"Found {invoices.Count} Authorised Invoices since 01/01/2021");
             var singleinvoice = xeroAPI.AccountingApi.Invoice(invoices[5].InvoiceID.Value);
+            UpdateStatus($"Single Invoice :{singleinvoice}");
 
+            var quotes = xeroAPI.AccountingApi.Quotes();
+            UpdateStatus($"Found {quotes.Count} Quotes");
+            if (quotes != null && quotes.Count > 0)
+            {
+                var singlequote = xeroAPI.AccountingApi.Quote(quotes[0].QuoteID.Value);
+                UpdateStatus($"Single Quote :{singlequote}");
+            }
 
-
-            //var quotes = xeroAPI.AccountingApi.Quotes();
-            //if (quotes != null && quotes.Count > 0)
-            //{
-            //    var singlequote = xeroAPI.AccountingApi.Quote(quotes[0].QuoteID.Value);// return Xero.NetStandard.OAuth2.Model.Accounting.Quote
-            //}
-
-
-            int h = 0;
-
+            UpdateStatus($"Done");
         }
         private void StatusUpdates(object sender, XeroAuth2API.API.StatusEventArgs e)
         {
@@ -255,8 +274,12 @@ namespace XeroAPI2Tests
             WriteLogFile($"{e.Status.ToString()} - {e.MessageText}", "APILog", true, true);
             // UpdateStatus($"{e.Status.ToString()} - {e.MessageText}", lstResults); gets stuck due to invoke?!?!?!!?!?
         }
-        public static void UpdateStatus(string sText, ListBox lstResults = null, bool bSameLine = false, bool bAdd = false)
+        public void UpdateStatus(string sText, ListBox lstResults = null, bool bSameLine = false, bool bAdd = false)
         {
+            if (lstResults == null)
+            {
+                lstResults = this.lstResults;
+            }
             if (lstResults.InvokeRequired)
             {
                 lstResults.Invoke((MethodInvoker)delegate
@@ -291,7 +314,6 @@ namespace XeroAPI2Tests
                     lstResults.Refresh();
 
                 }
-
             }
         }
 
@@ -299,10 +321,7 @@ namespace XeroAPI2Tests
         {
             try
             {
-
                 string sPath = Path.Combine(ApplicationPath, "Logs", $"{sLogFileName}.log");
-
-                //   string sPath = String.Format(@"{0}\logs\{1}.log", ApplicationPath, sLogFileName);
 
                 if (System.IO.File.Exists(sPath).Equals(false))
                 {
@@ -333,23 +352,11 @@ namespace XeroAPI2Tests
                 {
                     System.IO.File.Move(sPath, $@"{ApplicationPath}\logs\Completed\{sLogFileName}_{DateTime.Now.ToString("dd-mm-yyyy HHmmss")}.log");
                 }
-
-
-                //<EhFooter>
             }
-#pragma warning disable CS0168 // Variable is declared but never used
             catch (System.Exception ex)
-#pragma warning restore CS0168 // Variable is declared but never used
             {
-
-                // Handle exception here
-                //Interaction.MsgBox("Error occured in modStuff(modStuff.vb) - at Sub - WriteLogFile at line " + Information.Erl() + Constants.vbCrLf + Err().Description, Constants.vbExclamation + Constants.vbOKOnly, "Application Exception Error in MailSolutionsXML");
             }
-
-            //</EhFooter>
         }
-
-
 
         /// <summary>Read the contents of a text file into a string </summary>
         /// <param name="filepath">File to read</param>
@@ -438,18 +445,7 @@ namespace XeroAPI2Tests
 
         private void button1_Click(object sender, EventArgs e)
         {
-            xeroAPI.InitializeAPI(); // Init the API and pass in the old token - this will be refreshed if required
-
-            // Write the AccessToken to storage
-            string tokendata = SerializeObject(XeroConfig);
-            WriteTextFile("tokendata.txt", tokendata);
-
-            // Find the Demo Company TenantID
-            Tenant Tenant = xeroAPI.Tenants.Find(x => x.TenantName.ToLower() == "demo company (uk)");
-            //  XeroAuth2API.Model.Tenant Tenant = xeroAPI.Tenants[1];
-            xeroAPI.SelectedTenant = Tenant; // Ensure its selected
-
-
+            xeroAPI.InitializeAPI();
             // Create a test invoice
             var xeroContact = new Xero.NetStandard.OAuth2.Model.Accounting.Contact
             {

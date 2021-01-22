@@ -154,7 +154,7 @@ namespace XeroAuth2API
             {
                 throw new ArgumentNullException("Missing XeroConfig");
             }
-            _authClient.XeroConfig = XeroConfig; // Always ensure the auth client has the XeroConfig 
+            _authClient.XeroConfig = XeroConfig; // Always ensure the auth client has the XeroConfig             
             try
             {
                 var task = Task.Run(() => _authClient.InitializeoAuth2(timeout, ForceReAuth));
