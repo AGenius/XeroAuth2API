@@ -198,7 +198,7 @@ namespace XeroAuth2API.Model
                             .Replace('+', '-')
                             .Replace('/', '_');
                     }
-                    string url = $"{XeroURLS.XERO_AUTH_URL}response_type=code&client_id={ClientID}&redirect_uri={CallbackUri.AbsoluteUri}&scope={Scope.Replace(" ", "%20")}&code_challenge={codeChallenge}&code_challenge_method=S256";
+                    string url = $"{XeroConstants.XERO_AUTH_URL}response_type=code&client_id={ClientID}&redirect_uri={CallbackUri.AbsoluteUri}&scope={Scope.Replace(" ", "%20")}&code_challenge={codeChallenge}&code_challenge_method=S256";
                     if (!string.IsNullOrEmpty(State))
                     {
                         return $"{url}&state={State}";

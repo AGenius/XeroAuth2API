@@ -9,9 +9,10 @@ namespace XeroAPI2Tests
 {
     public partial class Form1 : Form
     {
-        string XeroClientID = "Your Client ID";
+        string XeroClientID = "95D14A0CC327455D889526A7D60E1517";//"Your Client ID";
         Uri XeroCallbackUri = new Uri("http://localhost:8888/callback");
         string XeroState = "123456";
+        string tenantName = "business technology partners limited";
 
         public static string ApplicationPath = System.IO.Directory.GetParent(System.Reflection.Assembly.GetEntryAssembly().Location).FullName;
 
@@ -55,13 +56,101 @@ namespace XeroAPI2Tests
 
             // Restore saved config
             xeroAPI = new XeroAuth2API.API(XeroConfig);
-            //xeroAPI.XeroConfig = XeroConfig;
-            // Save this
-            tokendata = SerializeObject(XeroConfig);
-            WriteTextFile("tokendata.txt", tokendata);
-            xeroAPI.StatusUpdates += StatusUpdates; // Bind to the status update event 
 
+            SaveConfig();
+
+            if (!SetupApi(tenantName))
+            {
+                simpleButton1.Enabled = false;
+                button1.Enabled = false;
+                return; /// Stop doing anything else
+            }
+            else
+            {
+                simpleButton1.Enabled = true;
+                button1.Enabled = true;
+            }
+
+            xeroAPI.StatusUpdates += StatusUpdates; // Bind to the status update event 
         }
+        private void SaveConfig()
+        {
+            string tokendata = SerializeObject(XeroConfig);
+            WriteTextFile("tokendata.txt", tokendata);
+        }
+        private bool SetupApi(string tName)
+        {
+            bool done = false;
+            do
+            {
+                try
+                {
+                    xeroAPI.InitializeAPI();
+                    done = true;
+                    SaveConfig(); // Ensure the new config (with new tokens are saved)
+                }
+                catch (Exception ex)
+                {
+                    DialogResult rslt = MessageBox.Show(ex.Message + " Try Again?", "Error", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+                    if (rslt == DialogResult.No)
+                    {
+                        done = true;
+                    }
+                }
+            } while (!done);
+            // Initial startup/auth performed check tenant
+            if (xeroAPI.isConnected)
+            {
+                done = false;
+                Tenant tenant = xeroAPI.Tenants.Find(x => x.TenantName.ToLower() == tName.ToLower());
+                xeroAPI.SelectedTenant = tenant; // Ensure its selected
+                do
+                {
+                    if (xeroAPI.SelectedTenant == null) // Not selected
+                    {
+                        try
+                        {
+                            xeroAPI.InitializeAPI(60, true); // Force a re-auth so any missing tenants can be selected 
+                            SaveConfig(); // Ensure the new config (with new tokens are saved)
+                            done = true;
+                            // Check tenant again
+                            tenant = xeroAPI.Tenants.Find(x => x.TenantName.ToLower() == tName.ToString());
+                            xeroAPI.SelectedTenant = tenant; // Ensure its selected
+                            if (xeroAPI.SelectedTenant == null)
+                            {
+                                done = false;
+                                DialogResult rslt = MessageBox.Show(this, "Invalid Tenant Selected, Please try again", "Error", MessageBoxButtons.YesNo);
+                                if (rslt == DialogResult.No)
+                                {
+                                    done = true;
+                                }
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            DialogResult rslt = MessageBox.Show(ex.Message + " Try Again?", "Error", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+                            if (rslt == DialogResult.No)
+                            {
+                                done = true;
+                            }
+                        }
+
+                    }
+                } while (!done);
+                if (xeroAPI.SelectedTenant == null)
+                {
+                    return false;
+                }
+
+                return true;
+            }
+            else
+            {
+                MessageBox.Show("Failed to connect to Xero");
+                return false;
+            }
+        }
+
         private void simpleButton1_Click(object sender, EventArgs e)
         {
             xeroAPI.InitializeAPI(); // Init the API and pass in the old token - this will be refreshed if required
@@ -87,7 +176,7 @@ namespace XeroAPI2Tests
             atypes.Add(Xero.NetStandard.OAuth2.Model.Accounting.AccountType.BANK);
 
             //var accounts = xeroAPI.AccountingApi.Accounts(status, "Name", atypes); // Return List<Xero.NetStandard.OAuth2.Model.Accounting.Account>
-           // var accounts = xeroAPI.AccountingApi.Accounts(Xero.NetStandard.OAuth2.Model.Accounting.Account.StatusEnum.ACTIVE, "Name"); // Return List<Xero.NetStandard.OAuth2.Model.Accounting.Account>
+            // var accounts = xeroAPI.AccountingApi.Accounts(Xero.NetStandard.OAuth2.Model.Accounting.Account.StatusEnum.ACTIVE, "Name"); // Return List<Xero.NetStandard.OAuth2.Model.Accounting.Account>
 
             //var  accounts = xeroAPI.AccountingApi.Accounts(); // Return List<Xero.NetStandard.OAuth2.Model.Accounting.Account>
 
@@ -96,7 +185,7 @@ namespace XeroAPI2Tests
             try
             {
 
-               // var assets = xeroAPI.AssetApi.Assets(Xero.NetStandard.OAuth2.Model.Asset.AssetStatusQueryParam.REGISTERED);
+                // var assets = xeroAPI.AssetApi.Assets(Xero.NetStandard.OAuth2.Model.Asset.AssetStatusQueryParam.REGISTERED);
             }
             catch (Exception ex)
             {
@@ -143,7 +232,7 @@ namespace XeroAPI2Tests
 
 
             //var invoices = xeroAPI.AccountingApi.Invoices(null, null, -1);
-            var invoices = xeroAPI.AccountingApi.Invoices( Xero.NetStandard.OAuth2.Model.Accounting.Invoice.StatusEnum.AUTHORISED,new DateTime(2021,1,1));
+            var invoices = xeroAPI.AccountingApi.Invoices(Xero.NetStandard.OAuth2.Model.Accounting.Invoice.StatusEnum.AUTHORISED, new DateTime(2021, 1, 1));
             var singleinvoice = xeroAPI.AccountingApi.Invoice(invoices[5].InvoiceID.Value);
 
 

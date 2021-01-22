@@ -20,7 +20,7 @@ namespace XeroAuth2API
 
         private System.Threading.Tasks.Task _mainLoop; //Keep the task in a variable to keep it alive
         public Model.XeroConfiguration config { get; set; } // Hold the configuration object 
-
+        
         #region Event
         public class LocalHttpListenerEventArgs : EventArgs
         {
@@ -152,39 +152,55 @@ namespace XeroAuth2API
             var code = "";
             var state = "";
 
-            if (query.Contains("?"))
+            // Deal with access denied/cancel
+            if (query.Contains("error"))
             {
-                query = query.Substring(query.IndexOf('?') + 1);
+                var buffer = Encoding.UTF8.GetBytes(XeroConstants.XERO_AUTH_ACCESS_DENIED_HTML);
+                response.ContentLength64 = buffer.Length;
+                response.OutputStream.Write(buffer, 0, buffer.Length);
+                // Raise the event so the oAuth2 class can process the receipt of the 
+                LocalHttpListenerEventArgs args = new LocalHttpListenerEventArgs() { MessageText = XeroConstants.XERO_AUTH_ACCESS_DENIED };
+                OnMessageReceived(args);
+                config.ReturnedAccessCode = XeroConstants.XERO_AUTH_ACCESS_DENIED;// Asigning this will stop the wait timeout loop
             }
-
-            foreach (var vp in Regex.Split(query, "&"))
+            else
             {
-                var singlePair = Regex.Split(vp, "=");
-
-                if (singlePair.Length == 2)
+                if (query.Contains("?"))
                 {
-                    if (singlePair[0] == "code")
-                    {
-                        code = singlePair[1];
-                        config.ReturnedAccessCode = code;
-                    }
+                    // Break down the query string by the ? 
+                    query = query.Substring(query.IndexOf('?') + 1);
+                }
 
-                    if (singlePair[0] == "state")
+                foreach (var vp in Regex.Split(query, "&"))
+                {
+                    var singlePair = Regex.Split(vp, "=");
+
+                    if (singlePair.Length == 2)
                     {
-                        state = singlePair[1];
-                        config.ReturnedState = state;
+                        if (singlePair[0] == "code")
+                        {
+                            code = singlePair[1];
+                            config.ReturnedAccessCode = code; // Asigning this will stop the wait timeout loop
+                        }
+
+                        if (singlePair[0] == "state")
+                        {
+                            state = singlePair[1];
+                            config.ReturnedState = state;
+                        }
                     }
                 }
+
+                var buffer = Encoding.UTF8.GetBytes(XeroConstants.XERO_AUTH_ACCESS_GRANTED_HTML);
+                response.ContentLength64 = buffer.Length;
+                response.OutputStream.Write(buffer, 0, buffer.Length);
+                // Raise the event so the oAuth2 class can process the receipt of the 
+                LocalHttpListenerEventArgs args = new LocalHttpListenerEventArgs() { MessageText = XeroConstants.XERO_AUTH_ACCESS_GRANTED };
+                OnMessageReceived(args);
+
+                return true;
             }
-
-            var buffer = Encoding.UTF8.GetBytes("<h2>Xero access Authentication is completed.</h2><p>You may now close this window </p>");
-            response.ContentLength64 = buffer.Length;
-            response.OutputStream.Write(buffer, 0, buffer.Length);
-            // Raise the event so the oAuth2 class can process the receipt of the 
-            LocalHttpListenerEventArgs args = new LocalHttpListenerEventArgs() { MessageText = $"Code Received" };
-            OnMessageReceived(args);
-
-            return true;
+            return false;
         }
     }
 }

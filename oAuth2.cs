@@ -15,6 +15,7 @@ namespace XeroAuth2API
         public XeroConfiguration XeroConfig { get; set; }
         public XeroAccessToken XeroAPIToken { get; set; } // Hold the active Access and Refresh tokens
         public int? Timeout { get; set; }
+        public bool HasTimedout { get; set; }
 
         LocalHttpListener responseListener = null;
         protected internal API ParentAPI { get; set; }
@@ -34,6 +35,7 @@ namespace XeroAuth2API
             {
                 Timeout = 60;
             }
+            HasTimedout = false;
         }
 
         /// <summary>
@@ -60,7 +62,7 @@ namespace XeroAuth2API
             Timeout = timeout;
             if (ForceReAuth)
             {
-                doAuth = true;                
+                doAuth = true;
             }
             // Check Scope change. If changed then we need to re-authenticate
             if (XeroConfig.XeroAPIToken.RequestedScopes != null && XeroConfig.Scope != XeroConfig.XeroAPIToken.RequestedScopes)
@@ -74,8 +76,18 @@ namespace XeroAuth2API
                     XeroConfig.XeroAPIToken.ExpiresAtUtc.AddDays(59) < DateTime.Now))
                 {
                     // Do a refresh
-                    RefreshToken();
-                    return;
+                    try
+                    {
+                        RefreshToken();
+                        doAuth = false;
+                    }
+                    catch (Exception ex)
+                    {
+                        // If an error happens there was a problem with the token data
+                        // Possibly app was disconnected or revoked
+                        // Re-authenticate
+                        doAuth = true;
+                    }
                 }
 
                 // Do a new authenticate if expired (over 59 days)
@@ -111,8 +123,7 @@ namespace XeroAuth2API
             responseListener.Message += MessageResponse;
             responseListener.callBackUri = XeroConfig.CallbackUri;
             responseListener.config = XeroConfig;
-            responseListener.StartWebServer();
-            // XeroConfig.XeroAPIToken.AccessToken = null; // Ensure the Access Token is cleared as we are authenticating  
+            responseListener.StartWebServer();            
 
             //open web browser with the link generated
             System.Diagnostics.Process.Start(XeroConfig.AuthURL);
@@ -120,33 +131,39 @@ namespace XeroAuth2API
             // Fire Event so the caller can monitor
             onStatusUpdates("Login URL Opened", XeroEventStatus.Log);
 
-            // Basically wait for 60 Seconds (should be long enough)
+            // Basically wait for 60 Seconds (should be long enough, possibly not for first time if using 2FA)
+            HasTimedout = false;
             int counter = 0;
             do
             {
                 await Task.Delay(1000); // Wait 1 second - gives time for response back to listener
                 counter++;
-            } while (responseListener.config.ReturnedAccessCode == null && counter < Timeout);
+            } while (responseListener.config.ReturnedAccessCode == null && counter < Timeout); // Keep waiting until a code is returned or a timeout happens
 
             if (counter >= Timeout)
             {
                 // Raise event to the parent caller (your app)
                 onStatusUpdates("Timed Out Waiting for Authentication", XeroEventStatus.Timeout);
+                HasTimedout = true;                
             }
             else
             {
-                // Raise event to the parent caller (your app)
-                onStatusUpdates("Success", XeroEventStatus.Success);
+                // Test if access was not granted
+                // ReturnedAccessCode will be either a valid code or "ACCESS DENIED"
+                if (responseListener.config.ReturnedAccessCode != XeroConstants.XERO_AUTH_ACCESS_DENIED)
+                {
+                    // Raise event to the parent caller (your app)
+                    onStatusUpdates("Success", XeroEventStatus.Success);
 
-                XeroConfig = responseListener.config;// update the config with the retrieved access code data
-                ExchangeCodeForToken();
-
-                responseListener.StopWebServer();
+             //       XeroConfig = responseListener.config;// update the config with the retrieved access code data
+                    ExchangeCodeForToken();
+                    // Raise event to the parent caller (your app)
+                    onStatusUpdates("Authentication Completed", XeroEventStatus.Success);
+                }
             }
+            responseListener.StopWebServer();
             // Raise event to the parent caller (your app)
-            onStatusUpdates("Authentication Completed", XeroEventStatus.Success);
-
-            return;
+            onStatusUpdates("Authentication Failed", XeroEventStatus.Failed);
         }
         private void MessageResponse(object sender, LocalHttpListener.LocalHttpListenerEventArgs e)
         {
@@ -174,7 +191,7 @@ namespace XeroAuth2API
                         new KeyValuePair<string, string>("code_verifier", XeroConfig.codeVerifier),
                       });
 
-                    var responsetask = Task.Run(() => client.PostAsync(XeroURLS.XERO_TOKEN_URL, formContent));
+                    var responsetask = Task.Run(() => client.PostAsync(XeroConstants.XERO_TOKEN_URL, formContent));
                     responsetask.Wait();
                     var response = responsetask.Result;// await client.PostAsync(url, formContent);
 
@@ -188,7 +205,7 @@ namespace XeroAuth2API
 
                     client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", XeroConfig.XeroAPIToken.AccessToken);
 
-                    responsetask = Task.Run(() => client.GetAsync(XeroURLS.XERO_TENANTS_URL));
+                    responsetask = Task.Run(() => client.GetAsync(XeroConstants.XERO_TENANTS_URL));
                     responsetask.Wait();
                     response = responsetask.Result;
 
@@ -243,41 +260,58 @@ namespace XeroAuth2API
         public void RefreshToken()
         {
             onStatusUpdates("Begin Token Refresh", XeroEventStatus.Success);
-
-            var client = new HttpClient();
-            var formContent = new FormUrlEncodedContent(new[]
+            try
             {
+                var client = new HttpClient();
+                var formContent = new FormUrlEncodedContent(new[]
+                {
                 new KeyValuePair<string, string>("grant_type", "refresh_token"),
                 new KeyValuePair<string, string>("client_id", XeroConfig.ClientID),
                 new KeyValuePair<string, string>("refresh_token", XeroConfig.XeroAPIToken.RefreshToken),
             });
 
-            var responsetask = Task.Run(() => client.PostAsync(XeroURLS.XERO_TOKEN_URL, formContent));
-            responsetask.Wait();
-            var response = responsetask.Result;
+                var responsetask = Task.Run(() => client.PostAsync(XeroConstants.XERO_TOKEN_URL, formContent));
+                responsetask.Wait();
+                var response = responsetask.Result;
 
-            var contenttask = Task.Run(() => response.Content.ReadAsStringAsync());
-            contenttask.Wait();
-            var content = contenttask.Result;
+                if (response.StatusCode != System.Net.HttpStatusCode.OK)
+                {
+                    // Something didnt work - disconnected/revoked?
+                    throw new Exception(response.ReasonPhrase);
+                }
+                var contenttask = Task.Run(() => response.Content.ReadAsStringAsync());
+                contenttask.Wait();
+                var content = contenttask.Result;
 
-            // Unpack the response tokens
-            XeroConfig.XeroAPIToken = UnpackToken(content);
+                // Unpack the response tokens
+                if (content.Contains("error"))
+                {
+                    throw new Exception(content);
+                }
+                XeroConfig.XeroAPIToken = UnpackToken(content);
 
-            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", XeroConfig.XeroAPIToken.AccessToken);
+                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", XeroConfig.XeroAPIToken.AccessToken);
 
-            responsetask = Task.Run(() => client.GetAsync(XeroURLS.XERO_TENANTS_URL));
-            responsetask.Wait();
-            response = responsetask.Result;// await client.PostAsync(url, formContent);
+                responsetask = Task.Run(() => client.GetAsync(XeroConstants.XERO_TENANTS_URL));
+                responsetask.Wait();
+                response = responsetask.Result;// await client.PostAsync(url, formContent);
 
-            contenttask = Task.Run(() => response.Content.ReadAsStringAsync());
-            contenttask.Wait();
-            content = contenttask.Result;// await response.Content.ReadAsStringAsync();
+                contenttask = Task.Run(() => response.Content.ReadAsStringAsync());
+                contenttask.Wait();
+                content = contenttask.Result;// await response.Content.ReadAsStringAsync();
 
-            XeroConfig.XeroAPIToken.Tenants = JsonConvert.DeserializeObject<List<Tenant>>(content);
+                XeroConfig.XeroAPIToken.Tenants = JsonConvert.DeserializeObject<List<Tenant>>(content);
 
-            onStatusUpdates("Token Refresh Success", XeroEventStatus.Refreshed);
+                onStatusUpdates("Token Refresh Success", XeroEventStatus.Refreshed);
 
-            return;
+                return;
+            }
+            catch (Exception)
+            {
+
+                throw;
+            }
+
         }
         /// <summary>
         /// Unpack the token data from the API Authentication or Refresh calls

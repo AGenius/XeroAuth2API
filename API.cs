@@ -22,6 +22,12 @@ namespace XeroAuth2API
 
         public XeroConfiguration XeroConfig { get; set; }
         /// <summary>
+        /// When the API is initialized and the Token is refreshed or the API is authenticated 
+        /// this will be set to true.
+        /// Use this property to determine if the auth/refresh is all ok
+        /// </summary>
+        public bool isConnected { get; set; }
+        /// <summary>
         /// If provided, the API setup will try and match the name with the correct tenant otherwise the first tenant will be selected
         /// </summary>
         public string TenantName
@@ -70,7 +76,7 @@ namespace XeroAuth2API
         public Api.AssetApi AssetApi = new Api.AssetApi();
         public Api.ProjectApi ProjectApi = new Api.ProjectApi();
 
-        
+
         #region Event
 
         public class LogMessage
@@ -94,12 +100,13 @@ namespace XeroAuth2API
         public API()
         {
             _authClient = new oAuth2();
-            _authClient.ParentAPI = this;           
+            _authClient.ParentAPI = this;
             // Setup the reference to the core wrapper
             AccountingApi.APICore = this;
             AssetApi.APICore = this;
             ProjectApi.APICore = this;
-            
+            isConnected = false;
+
         }
         public API(XeroConfiguration config = null)
         {
@@ -109,7 +116,7 @@ namespace XeroAuth2API
             }
             if (config != null)
             {
-                XeroConfig = config;               
+                XeroConfig = config;
             }
             if (XeroConfig.AutoSelectTenant == null)
             {
@@ -126,15 +133,23 @@ namespace XeroAuth2API
             AccountingApi.APICore = this;
             AssetApi.APICore = this;
             ProjectApi.APICore = this;
-
+            isConnected = false;
 
         }
         /// <summary>
         /// Setup the API and refresh token or re-authorise if needed/requested
         /// </summary>
+        /// <param name="timeout">set a timeout to wait for authentication (default is 60 seconds)</param>
         /// <param name="ForceReAuth">This will force the Auth login again-Needed if you want to add a new tenant</param>
-        public void InitializeAPI(bool ForceReAuth = false)
+        /// <exception cref="TimeoutException">If the Auth process times out an exception will be raised.</exception>
+        public void InitializeAPI(int? timeout = 60, bool ForceReAuth = false)
         {
+            isConnected = false;
+            if (timeout == null)
+            {
+                // Ensure if null passed then default to 60 seconds
+                timeout = 60;
+            }
             if (XeroConfig == null)
             {
                 throw new ArgumentNullException("Missing XeroConfig");
@@ -142,9 +157,13 @@ namespace XeroAuth2API
             _authClient.XeroConfig = XeroConfig; // Always ensure the auth client has the XeroConfig 
             try
             {
-                var task = Task.Run(() => _authClient.InitializeoAuth2());
+                var task = Task.Run(() => _authClient.InitializeoAuth2(timeout, ForceReAuth));
                 task.Wait();
-                //        _authClient.XeroConfig = XeroConfig; // Ensure the auth client has an updated copy of the token
+                if (_authClient.HasTimedout)
+                {
+                    onStatusUpdates("Timed Out Waiting for Authentication", XeroEventStatus.Timeout);
+                    throw new TimeoutException("Timed Out Waiting for Authentication");
+                }
                 onStatusUpdates("Checking Token", XeroEventStatus.Success);
 
                 if (XeroConfig.SelectedTenant == null)
@@ -154,17 +173,21 @@ namespace XeroAuth2API
                         XeroConfig.SelectedTenant = XeroConfig.XeroAPIToken.Tenants[0];
                     }
                 }
-
-                // Not Sure why I did this twice
-                //task = Task.Run(() => _authClient.InitializeoAuth2(_authClient.XeroToken));
-                //task.Wait();
-
                 onStatusUpdates("Ready", XeroEventStatus.Success);
+                isConnected = true;
             }
             catch (Exception ex)
             {
                 var er = ex.InnerException as Xero.NetStandard.OAuth2.Client.ApiException;
-                throw new Xero.NetStandard.OAuth2.Client.ApiException(er.ErrorCode, er.Message, er.ErrorContent);
+                if (er != null)
+                {
+                    throw new Xero.NetStandard.OAuth2.Client.ApiException(er.ErrorCode, er.Message, er.ErrorContent);
+                }
+                if (er == null && ex.InnerException != null)
+                {
+                    throw new Exception(ex.InnerException.Message);
+                }
+                throw;
             }
         }
         private string GenerateCodeVerifier()
