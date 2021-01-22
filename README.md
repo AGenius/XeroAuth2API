@@ -40,6 +40,13 @@ I built something similar in the past using the TCP Listener and started to look
 
 
 ## Getting Started
+Clone/Download the repository
+To restore the packages used from NuGet and you may need to execute in the Nuget package console
+``
+Update-Package -reinstall
+``
+
+
 Example of how to use this API Wrapper
 
 There are a number ways to setup the API
