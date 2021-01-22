@@ -32,7 +32,18 @@ namespace XeroAPI2Tests
                 XeroConfig = DeSerializeObject<XeroConfiguration>(tokendata);
                 if (XeroConfig.ClientID != XeroClientID)
                 {
-                    XeroConfig.XeroAPIToken = null; // force re-auth as ID changed
+                    // Setup New Config
+                    XeroConfig = new XeroConfiguration
+                    {
+                        ClientID = XeroClientID,
+                        CallbackUri = XeroCallbackUri,
+                        // Add them this way or see below
+                        //Scopes = new List<XeroAuth2API.XeroScope> { XeroAuth2API.XeroScope.accounting_contacts, XeroAuth2API.XeroScope.accounting_transactions },
+                        State = XeroState, // Optional - Not needed for a desktop app
+                        codeVerifier = null // Code verifier will be generated if empty
+                    };
+                    XeroConfig.AddScope(XeroAuth2API.XeroScope.all);
+                    SaveConfig();
                     UpdateStatus($"Client ID Changed");
                 }
             }
