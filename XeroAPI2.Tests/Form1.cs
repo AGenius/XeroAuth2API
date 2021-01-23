@@ -11,7 +11,7 @@ namespace XeroAPI2Tests
         Uri XeroCallbackUri = new Uri("http://localhost:8888/callback");
         string XeroState = "123456";
 
-        string XeroClientID = "";//"Your Client ID";
+        string XeroClientID = "Your Client ID";
         string tenantName = "demo company (uk)";// "your company";
 
         public static string ApplicationPath = System.IO.Directory.GetParent(System.Reflection.Assembly.GetEntryAssembly().Location).FullName;
@@ -181,8 +181,12 @@ namespace XeroAPI2Tests
         {
             xeroAPI.InitializeAPI();
                        
-            var contacts = xeroAPI.AccountingApi.Contacts( Xero.NetStandard.OAuth2.Model.Accounting.Contact.ContactStatusEnum.ACTIVE);
-            UpdateStatus($"Found {contacts.Count} Contacts");
+            var contacts = xeroAPI.AccountingApi.Contacts( Xero.NetStandard.OAuth2.Model.Accounting.Contact.ContactStatusEnum.ACTIVE);      
+            if (contacts != null) UpdateStatus($"Found {contacts.Count} Archived Contacts");
+
+            var contacts2 = xeroAPI.AccountingApi.Contacts(Xero.NetStandard.OAuth2.Model.Accounting.Contact.ContactStatusEnum.ACTIVE, null,null, XeroAuth2API.Api.AccountingApi.ContactType.isCustomer);
+            UpdateStatus($"Found {contacts2.Count} Active Contacts");
+
 
             List<Xero.NetStandard.OAuth2.Model.Accounting.Account.StatusEnum> status = new List<Xero.NetStandard.OAuth2.Model.Accounting.Account.StatusEnum>();
             status.Add(Xero.NetStandard.OAuth2.Model.Accounting.Account.StatusEnum.DELETED);

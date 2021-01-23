@@ -652,7 +652,7 @@ namespace XeroAuth2API.Api
             List<Address.AddressTypeEnum> AddressType = null)
         {
             // Build the where from List collections
-            string where = Common.BuildFilterString("Status", Status);
+            string where = Common.BuildFilterString("ContactStatus", Status);
 
             if (AddressType != null && AddressType.Count > 0)
             {
@@ -673,7 +673,7 @@ namespace XeroAuth2API.Api
         ContactType contactType = ContactType.Either)
         {
             // Build the where from enums
-            string where = Common.BuildFilterString("Status", Status);
+            string where = Common.BuildFilterString("ContactStatus", Status);
 
             if (AddressType != null)
             {
