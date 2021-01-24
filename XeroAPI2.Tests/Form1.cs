@@ -183,10 +183,11 @@ namespace XeroAPI2Tests
                        
             var contacts = xeroAPI.AccountingApi.Contacts( Xero.NetStandard.OAuth2.Model.Accounting.Contact.ContactStatusEnum.ACTIVE);      
             if (contacts != null) UpdateStatus($"Found {contacts.Count} Archived Contacts");
-
+            var test = contacts.Find(x => x.Name == "Gable Print");
             var contacts2 = xeroAPI.AccountingApi.Contacts(Xero.NetStandard.OAuth2.Model.Accounting.Contact.ContactStatusEnum.ACTIVE, null,null, XeroAuth2API.Api.AccountingApi.ContactType.isCustomer);
             UpdateStatus($"Found {contacts2.Count} Active Contacts");
 
+            var creditnotes = xeroAPI.AccountingApi.CreditNotes(null, new DateTime(2020, 11, 1));
 
             List<Xero.NetStandard.OAuth2.Model.Accounting.Account.StatusEnum> status = new List<Xero.NetStandard.OAuth2.Model.Accounting.Account.StatusEnum>();
             status.Add(Xero.NetStandard.OAuth2.Model.Accounting.Account.StatusEnum.DELETED);

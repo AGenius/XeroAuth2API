@@ -669,7 +669,7 @@ namespace XeroAuth2API.Api
         /// <param name="AddressType">AddressType Enum - Xero.NetStandard.OAuth2.Model.Accounting.Address.AddressType</param>       
         /// <returns>List of Matching Records</returns>
         public List<Contact> Contacts(Contact.ContactStatusEnum Status, string order = null,
-        Address.AddressTypeEnum? AddressType = null, 
+        Address.AddressTypeEnum? AddressType = null,
         ContactType contactType = ContactType.Either)
         {
             // Build the where from enums
@@ -686,7 +686,7 @@ namespace XeroAuth2API.Api
                     break;
                 case ContactType.isSupplier:
                     where += " && isSupplier=True";
-                    break;                
+                    break;
             }
 
             return Contacts(where, order);
@@ -1087,19 +1087,31 @@ namespace XeroAuth2API.Api
         /// <returns>List of CreditNotes</returns>
         public List<CreditNote> CreditNotes(List<CreditNote.StatusEnum> Status, DateTime? FromDate = null, DateTime? ToDate = null, string order = null)
         {
+            string where = string.Empty;
             // Build the where from List collections
-            string where = Common.BuildFilterString("Status", Status);
-            // Add the Date Range to the filter string
+            if (Status != null)
+            {
+                where = Common.BuildFilterString("Status", Status);
+            }
 
+            // Add the Date Range to the filter string
             if (FromDate.HasValue)
             {
                 // Remove the Time Portion when adding to filter
-                where += " && " + $"Date >= DateTime ({FromDate.Value.Year},{FromDate.Value.Month},{FromDate.Value.Day}) ";
+                if (!string.IsNullOrEmpty(where))
+                {
+                    where += " && ";
+                }
+                where += $"Date >= DateTime ({FromDate.Value.Year},{FromDate.Value.Month},{FromDate.Value.Day}) ";
             }
             if (ToDate.HasValue)
             {
                 // Remove the Time Portion when adding to filter
-                where += " && " + $"Date <= DateTime ({ToDate.Value.Year},{ToDate.Value.Month},{ToDate.Value.Day}) ";
+                if (!string.IsNullOrEmpty(where))
+                {
+                    where += " && ";
+                }
+                where += $"Date <= DateTime ({ToDate.Value.Year},{ToDate.Value.Month},{ToDate.Value.Day}) ";
             }
 
             return CreditNotes(where, order);
