@@ -1,5 +1,11 @@
 # XeroAuth2API
-Provides a simple way to get your Xero oAuth2 tokens and wrap the Net-Standard API calls into easier to use Synchronous calls.
+
+#### I have a new .Net Framwork version that is completly self contained and does not require the NetStandard Nuget package to be installed.
+
+[https://github.com/AGenius/Xero.Net.OAuth2](https://github.com/AGenius/Xero.Net.OAuth2)
+
+
+This provides a simple way to get your Xero oAuth2 tokens and wrap the Net-Standard API calls into easier to use Synchronous calls.
 
 The core oAuth2 process is wrapped up in a nice self contained class to do all the work for you.
 
@@ -14,6 +20,7 @@ The oAuth2 process is wrapped inside a API Wrapper designed to simplify the API 
 You will need the XeroAPI/Net-Standard Nuget package installed so you can use the models as I have not replicated these models in this wrapper
 
 [![NuGet.org](https://img.shields.io/badge/NuGet.org-Xero.NetStandard.OAuth2-brightgreen?style=plastic&logo=appveyor)](https://www.nuget.org/packages/Xero.NetStandard.OAuth2/)
+
 
 Visit https://github.com/XeroAPI/Xero-NetStandard
 
