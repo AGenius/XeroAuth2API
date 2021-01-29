@@ -180,11 +180,11 @@ namespace XeroAPI2Tests
         private void simpleButton1_Click(object sender, EventArgs e)
         {
             xeroAPI.InitializeAPI();
-                       
-            var contacts = xeroAPI.AccountingApi.Contacts( Xero.NetStandard.OAuth2.Model.Accounting.Contact.ContactStatusEnum.ACTIVE);      
+
+            var contacts = xeroAPI.AccountingApi.Contacts(Xero.NetStandard.OAuth2.Model.Accounting.Contact.ContactStatusEnum.ARCHIVED);
             if (contacts != null) UpdateStatus($"Found {contacts.Count} Archived Contacts");
-            var test = contacts.Find(x => x.Name == "Gable Print");
-            var contacts2 = xeroAPI.AccountingApi.Contacts(Xero.NetStandard.OAuth2.Model.Accounting.Contact.ContactStatusEnum.ACTIVE, null,null, XeroAuth2API.Api.AccountingApi.ContactType.isCustomer);
+
+            var contacts2 = xeroAPI.AccountingApi.Contacts(Xero.NetStandard.OAuth2.Model.Accounting.Contact.ContactStatusEnum.ACTIVE, XeroAuth2API.Api.AccountingApi.ContactType.isCustomer);
             UpdateStatus($"Found {contacts2.Count} Active Contacts");
 
             var creditnotes = xeroAPI.AccountingApi.CreditNotes(null, new DateTime(2020, 11, 1));
@@ -197,10 +197,10 @@ namespace XeroAPI2Tests
             atypes.Add(Xero.NetStandard.OAuth2.Model.Accounting.AccountType.OVERHEADS);
             atypes.Add(Xero.NetStandard.OAuth2.Model.Accounting.AccountType.BANK);
 
-            var accounts1 = xeroAPI.AccountingApi.Accounts(status, "Name", atypes); // Return List<Xero.NetStandard.OAuth2.Model.Accounting.Account>
+            var accounts1 = xeroAPI.AccountingApi.Accounts(status, atypes); // Return List<Xero.NetStandard.OAuth2.Model.Accounting.Account>
             if (accounts1 != null) UpdateStatus($"Found {accounts1.Count} Archived and Deleted Accounts with Type = Bank and Overheads ");
 
-            var accounts2 = xeroAPI.AccountingApi.Accounts(Xero.NetStandard.OAuth2.Model.Accounting.Account.StatusEnum.ACTIVE, "Name"); // Return List<Xero.NetStandard.OAuth2.Model.Accounting.Account>
+            var accounts2 = xeroAPI.AccountingApi.Accounts(Xero.NetStandard.OAuth2.Model.Accounting.Account.StatusEnum.ACTIVE); // Return List<Xero.NetStandard.OAuth2.Model.Accounting.Account>
             UpdateStatus($"Found {accounts2.Count} Active Accounts");
 
             var accounts3 = xeroAPI.AccountingApi.Accounts(); // Return List<Xero.NetStandard.OAuth2.Model.Accounting.Account>

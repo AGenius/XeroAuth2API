@@ -15,7 +15,7 @@ namespace XeroAuth2API
         {
             get
             {
-                return "This API Version : 1.2021.0120 - Compatible with Xero-Standard API : 3.12.1";
+                return "This API Version : 1.2021.1202 - Compatible with Xero-Standard API : 3.13.0";
             }
         }
         oAuth2 _authClient = null;
@@ -70,6 +70,8 @@ namespace XeroAuth2API
                 XeroConfig.SelectedTenant = value;
             }
         }
+
+
 
         // Setup the sub API objects
         public Api.AccountingApi AccountingApi = new Api.AccountingApi();
@@ -189,6 +191,10 @@ namespace XeroAuth2API
                 }
                 throw;
             }
+        }
+        public void RevokeAuth()
+        {
+            _authClient.RevokeToken();
         }
         private string GenerateCodeVerifier()
         {

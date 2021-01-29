@@ -7,6 +7,9 @@ using System.Threading.Tasks;
 
 namespace XeroAuth2API.Model
 {
+    /// <summary>
+    /// The Configuration object that holds all the magic info needed!
+    /// </summary>
     public class XeroConfiguration
     {
         /// <summary>
@@ -32,7 +35,6 @@ namespace XeroAuth2API.Model
         /// where "port" is any valid port e.g. 8888 and "name" is something like "callback" - http://localhost:8888/callback
         /// </summary>
         public Uri CallbackUri { get; set; }
-
         private List<XeroScope> _scopes { get; set; } // Hold the list
         /// <summary>
         /// List of Scopes the API would like to use
@@ -53,18 +55,20 @@ namespace XeroAuth2API.Model
             set
             {
                 _scopes = value;
-
-                if (!_scopes.Contains(XeroScope.openid))
+                if (_scopes != null && _scopes.Count == 0)
                 {
-                    AddScope(XeroScope.openid); // Ensure its in there
-                }
-                if (!_scopes.Contains(XeroScope.profile))
-                {
-                    AddScope(XeroScope.profile); // Ensure its in there
-                }
-                if (!_scopes.Contains(XeroScope.offline_access))
-                {
-                    AddScope(XeroScope.offline_access); // Ensure its in there                   
+                    if (!_scopes.Contains(XeroScope.openid))
+                    {
+                        AddScope(XeroScope.openid); // Ensure its in there
+                    }
+                    if (!_scopes.Contains(XeroScope.profile))
+                    {
+                        AddScope(XeroScope.profile); // Ensure its in there
+                    }
+                    if (!_scopes.Contains(XeroScope.offline_access))
+                    {
+                        AddScope(XeroScope.offline_access); // Ensure its in there                   
+                    }
                 }
             }
         }
@@ -72,8 +76,12 @@ namespace XeroAuth2API.Model
         /// Add a scope to the required scopes when authenticating
         /// </summary>
         /// <param name="scope"></param>
-        public void AddScope(XeroScope scope)
+        public void AddScope(XeroScope scope, bool reset = false)
         {
+            if (reset)
+            {
+                Scopes = new List<XeroScope>(); // Reset the list as requested
+            }
             switch (scope)
             {
                 case XeroScope.all:
@@ -125,7 +133,7 @@ namespace XeroAuth2API.Model
                     // Add any not already in list
                     if (!Scopes.Contains(scope))
                     {
-                        Scopes.Add(scope);
+                        _scopes.Add(scope);
                     }
                     break;
             }
@@ -155,7 +163,7 @@ namespace XeroAuth2API.Model
                 string scopelist = string.Empty;
                 foreach (var item in Scopes)
                 {
-                    if (!string.IsNullOrEmpty(scopelist))
+                    if (!string.IsNullOrEmpty(scopelist) && item != XeroScope.offline_access)
                     {
                         scopelist += " ";
                     }
@@ -173,7 +181,9 @@ namespace XeroAuth2API.Model
                 scopelist += " offline_access";
                 return scopelist;
             }
+
         }
+
         /// <summary>
         /// a unique string to be passed back on completion (optional) 
         /// The state parameter should be used to avoid forgery attacks. Pass in a value that's unique to the user you're sending through authorisation. It will be passed back after the user completes authorisation.
@@ -225,6 +235,9 @@ namespace XeroAuth2API.Model
                 return null;
             }
         }
+        /// <summary>
+        /// The Tenant ID used for API calls
+        /// </summary>
         public string SelectedTenantID
         {
             get
@@ -235,9 +248,19 @@ namespace XeroAuth2API.Model
                 }
                 return null;
             }
-        }// The Tenant ID to use for API calls
-        public Tenant SelectedTenant { get; set; }// The Tenant  
+        }
+        /// <summary>
+        /// The Selected Tenant record
+        /// </summary>
+        public Tenant SelectedTenant { get; set; }
+        /// <summary>
+        /// Choose to store the Received scope list and sync it with the internal list
+        /// </summary>
         public bool StoreReceivedScope { get; set; }
+        /// <summary>
+        /// Auto select will ensure the first tenant is the selected tenant
+        /// Useful for single tenant connections
+        /// </summary>
         public bool? AutoSelectTenant { get; set; }
 
     }

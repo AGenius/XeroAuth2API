@@ -11,6 +11,8 @@ namespace XeroAuth2API
     /// </summary>
     internal static class Common
     {
+        // Retrieve the Assemblies physical file location so the default path to store/load files from is usable.
+        public static string ApplicationPath = System.IO.Directory.GetParent(System.Reflection.Assembly.GetEntryAssembly().Location).FullName;
         // Handle a list of enums
         internal static string BuildFilterString<T>(string fieldName, List<T> objectList)
         {

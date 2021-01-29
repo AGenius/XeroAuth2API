@@ -12,11 +12,16 @@ namespace XeroAuth2API.Api
     {
         Xero.NetStandard.OAuth2.Api.AccountingApi APIClient = new Xero.NetStandard.OAuth2.Api.AccountingApi();
         internal API APICore { get; set; }
+        /// <summary>
+        /// Throw errors for Items not found
+        /// </summary>
+        public bool? RaiseNotFoundErrors { get; set; }
+
 
 
         #region Accounts
         /// <summary>
-        /// Retrieve the full chart of accounts or filtered list
+        /// Retrieve the full chart of accounts or filtered list - sync version of the NetStandard call
         /// </summary>
         /// <param name="filter">string containing the filter to apply - e.g. "Class = \"REVENUE\" "</param>
         /// <param name="ModifiedSince">Only records created or modified since this timestamp will be returned (optional)</param>
@@ -52,7 +57,7 @@ namespace XeroAuth2API.Api
         /// <param name="BankAccountType">List of BankAccountTypeEnum Enums - Xero.NetStandard.OAuth2.Model.Accounting.Account.BankAccountTypeEnum</param>
         /// <param name="TaxType">List of TaxType Enums - Xero.NetStandard.OAuth2.Model.Accounting.TaxType</param>
         /// <returns>List of Matching Records</returns>
-        public List<Account> Accounts(List<Account.StatusEnum> Status, string order = null,
+        public List<Account> Accounts(List<Account.StatusEnum> Status,
             List<AccountType> Type = null,
             List<Account.ClassEnum> AccountClass = null,
             List<Account.BankAccountTypeEnum> BankAccountType = null,
@@ -78,7 +83,7 @@ namespace XeroAuth2API.Api
                 where += " && " + Common.BuildFilterString("TaxType", TaxType);
             }
 
-            return Accounts(where, order);
+            return Accounts(where);
         }
         /// <summary>
         /// Provide a way to fetch Accounts using a single Property
@@ -89,7 +94,7 @@ namespace XeroAuth2API.Api
         /// <param name="BankAccountType">BankAccountTypeEnum Enum - Xero.NetStandard.OAuth2.Model.Accounting.Account.BankAccountTypeEnum</param>
         /// <param name="TaxType">TaxType Enum - Xero.NetStandard.OAuth2.Model.Accounting.TaxType</param>
         /// <returns>List of Matching Records</returns>
-        public List<Account> Accounts(Account.StatusEnum Status, string order = null,
+        public List<Account> Accounts(Account.StatusEnum Status,
             AccountType? Type = null,
             Account.ClassEnum? AccountClass = null,
             Account.BankAccountTypeEnum? BankAccountType = null,
@@ -115,7 +120,7 @@ namespace XeroAuth2API.Api
                 where += " && " + Common.BuildFilterString("TaxType", TaxType);
             }
 
-            return Accounts(where, order);
+            return Accounts(where);
         }
         /// <summary>
         /// Retreive a single Account record 
@@ -138,6 +143,18 @@ namespace XeroAuth2API.Api
             catch (Exception ex)
             {
                 var er = ex.InnerException as Xero.NetStandard.OAuth2.Client.ApiException;
+                if (er.ErrorCode == 404)
+                {
+                    // Not Found
+                    if (!RaiseNotFoundErrors.HasValue || RaiseNotFoundErrors.Value == true)
+                    {
+                        throw new Xero.NetStandard.OAuth2.Client.ApiException(er.ErrorCode, er.Message, er.ErrorContent);
+                    }
+                    else
+                    {
+                        return null;
+                    }
+                }
                 throw new Xero.NetStandard.OAuth2.Client.ApiException(er.ErrorCode, er.Message, er.ErrorContent);
             }
 
@@ -359,6 +376,18 @@ namespace XeroAuth2API.Api
             catch (Exception ex)
             {
                 var er = ex.InnerException as Xero.NetStandard.OAuth2.Client.ApiException;
+                if (er.ErrorCode == 404)
+                {
+                    // Not Found
+                    if (!RaiseNotFoundErrors.HasValue || RaiseNotFoundErrors.Value == true)
+                    {
+                        throw new Xero.NetStandard.OAuth2.Client.ApiException(er.ErrorCode, er.Message, er.ErrorContent);
+                    }
+                    else
+                    {
+                        return null;
+                    }
+                }
                 throw new Xero.NetStandard.OAuth2.Client.ApiException(er.ErrorCode, er.Message, er.ErrorContent);
             }
 
@@ -574,6 +603,18 @@ namespace XeroAuth2API.Api
             catch (Exception ex)
             {
                 var er = ex.InnerException as Xero.NetStandard.OAuth2.Client.ApiException;
+                if (er.ErrorCode == 404)
+                {
+                    // Not Found
+                    if (!RaiseNotFoundErrors.HasValue || RaiseNotFoundErrors.Value == true)
+                    {
+                        throw new Xero.NetStandard.OAuth2.Client.ApiException(er.ErrorCode, er.Message, er.ErrorContent);
+                    }
+                    else
+                    {
+                        return null;
+                    }
+                }
                 throw new Xero.NetStandard.OAuth2.Client.ApiException(er.ErrorCode, er.Message, er.ErrorContent);
             }
 
@@ -597,7 +638,7 @@ namespace XeroAuth2API.Api
             Either
         }
         /// <summary>
-        /// Return a list of Contacts
+        /// Return a list of Contacts - sync version of the NetStandard call
         /// </summary>
         /// <param name="filter">Filter by an any element (optional)</param>
         /// <param name="order">Order by an any element (optional)</param>
@@ -606,7 +647,8 @@ namespace XeroAuth2API.Api
         /// <param name="iDs">Filter by a comma separated list of ContactIDs. Allows you to retrieve a specific set of contacts in a single call. (optional)</param>
         /// <param name="includeArchived">e.g. includeArchived&#x3D;true - Contacts with a status of ARCHIVED will be included in the response (optional)</param>
         /// <returns>List of Contacts</returns>
-        public List<Contact> Contacts(string filter = null, string order = null, int? onlypage = null, DateTime? ModifiedSince = null, List<Guid> iDs = null, bool? includeArchived = null)
+        public List<Contact> Contacts(string filter = null, string order = null, int? onlypage = null,
+            DateTime? ModifiedSince = null, List<Guid> iDs = null, bool? includeArchived = null)
         {
             int? page = 1;
             if (onlypage.HasValue)
@@ -644,11 +686,10 @@ namespace XeroAuth2API.Api
         /// <summary>
         /// Provide a way to fetch Contacts using a single Property
         /// </summary>
-        /// <param name="Status">List of Status Enum - Xero.NetStandard.OAuth2.Model.Accounting.Contact.StatusEnum </param>
-        /// <param name="order">Order by an any element (optional)</param>
+        /// <param name="Status">List of Status Enum - Xero.NetStandard.OAuth2.Model.Accounting.Contact.StatusEnum </param>        
         /// <param name="AddressType">List of AddressType Enum - Xero.NetStandard.OAuth2.Model.Accounting.Address.AddressType</param>       
         /// <returns>List of Matching Records</returns>
-        public List<Contact> Contacts(List<Contact.ContactStatusEnum> Status, string order = null,
+        public List<Contact> Contacts(List<Contact.ContactStatusEnum> Status,
             List<Address.AddressTypeEnum> AddressType = null)
         {
             // Build the where from List collections
@@ -659,18 +700,17 @@ namespace XeroAuth2API.Api
                 where += " && " + Common.BuildFilterString("AddressType", AddressType);
             }
 
-            return Contacts(where, order);
+            return Contacts(where);
         }
         /// <summary>
         /// Provide a way to fetch Contacts using a single Property
         /// </summary>
-        /// <param name="Status">Status Enum - Xero.NetStandard.OAuth2.Model.Accounting.Contact.StatusEnum </param>
-        /// <param name="order">Order by an any element (optional)</param>
+        /// <param name="Status">Status Enum - Xero.NetStandard.OAuth2.Model.Accounting.Contact.StatusEnum </param>        
         /// <param name="AddressType">AddressType Enum - Xero.NetStandard.OAuth2.Model.Accounting.Address.AddressType</param>       
         /// <returns>List of Matching Records</returns>
-        public List<Contact> Contacts(Contact.ContactStatusEnum Status, string order = null,
-        Address.AddressTypeEnum? AddressType = null,
-        ContactType contactType = ContactType.Either)
+        public List<Contact> Contacts(Contact.ContactStatusEnum Status,
+        ContactType contactType = ContactType.Either,
+        Address.AddressTypeEnum? AddressType = null)
         {
             // Build the where from enums
             string where = Common.BuildFilterString("ContactStatus", Status);
@@ -689,7 +729,17 @@ namespace XeroAuth2API.Api
                     break;
             }
 
-            return Contacts(where, order);
+            return Contacts(where);
+        }
+
+        /// <summary>
+        /// Provide a way to fetch Contacts using a list if IDs
+        /// </summary>
+        /// <param name="iDs">List of Guid's</param>
+        /// <returns>List of Matching Records</returns>
+        public List<Contact> Contacts(List<Guid> iDs)
+        {
+            return Contacts(null, null, null, null, iDs);
         }
         /// <summary>
         /// Return a single contact
@@ -714,6 +764,18 @@ namespace XeroAuth2API.Api
             catch (Exception ex)
             {
                 var er = ex.InnerException as Xero.NetStandard.OAuth2.Client.ApiException;
+                if (er.ErrorCode == 404)
+                {
+                    // Not Found
+                    if (!RaiseNotFoundErrors.HasValue || RaiseNotFoundErrors.Value == true)
+                    {
+                        throw new Xero.NetStandard.OAuth2.Client.ApiException(er.ErrorCode, er.Message, er.ErrorContent);
+                    }
+                    else
+                    {
+                        return null;
+                    }
+                }
                 throw new Xero.NetStandard.OAuth2.Client.ApiException(er.ErrorCode, er.Message, er.ErrorContent);
             }
 
@@ -898,6 +960,18 @@ namespace XeroAuth2API.Api
             catch (Exception ex)
             {
                 var er = ex.InnerException as Xero.NetStandard.OAuth2.Client.ApiException;
+                if (er.ErrorCode == 404)
+                {
+                    // Not Found
+                    if (!RaiseNotFoundErrors.HasValue || RaiseNotFoundErrors.Value == true)
+                    {
+                        throw new Xero.NetStandard.OAuth2.Client.ApiException(er.ErrorCode, er.Message, er.ErrorContent);
+                    }
+                    else
+                    {
+                        return null;
+                    }
+                }
                 throw new Xero.NetStandard.OAuth2.Client.ApiException(er.ErrorCode, er.Message, er.ErrorContent);
             }
 
@@ -1034,7 +1108,7 @@ namespace XeroAuth2API.Api
 
         #region Credit Notes
         /// <summary>
-        /// Retrieve a list of Credit Notes
+        /// Retrieve a list of Credit Notes - sync version of the NetStandard call
         /// </summary>
         /// <param name="filter">Filter to limit the number of records returned</param>
         /// <param name="order">Order by an any element (optional)</param>
@@ -1082,10 +1156,9 @@ namespace XeroAuth2API.Api
         /// </summary>
         /// <param name="Status">List of StatusEnum Enum - Xero.NetStandard.OAuth2.Model.Accounting.CreditNote.StatusEnum </param>         
         /// <param name="FromDate">DateTime - CreditNote dated from this value</param>   
-        /// <param name="ToDate">DateTime - CreditNote dated opto this value</param>           
-        /// <param name="order">Order by an any element (optional)</param>
+        /// <param name="ToDate">DateTime - CreditNote dated opto this value</param>                   
         /// <returns>List of CreditNotes</returns>
-        public List<CreditNote> CreditNotes(List<CreditNote.StatusEnum> Status, DateTime? FromDate = null, DateTime? ToDate = null, string order = null)
+        public List<CreditNote> CreditNotes(List<CreditNote.StatusEnum> Status, DateTime? FromDate = null, DateTime? ToDate = null)
         {
             string where = string.Empty;
             // Build the where from List collections
@@ -1114,17 +1187,16 @@ namespace XeroAuth2API.Api
                 where += $"Date <= DateTime ({ToDate.Value.Year},{ToDate.Value.Month},{ToDate.Value.Day}) ";
             }
 
-            return CreditNotes(where, order);
+            return CreditNotes(where);
         }
         /// <summary>
         /// Return a list of CreditNotes using enums
         /// </summary>
         /// <param name="Status">StatusEnum Enum - Xero.NetStandard.OAuth2.Model.Accounting.CreditNote.StatusEnum </param>        
         /// <param name="FromDate">DateTime - CreditNotes dated from this value</param>   
-        /// <param name="ToDate">DateTime - CreditNotes dated opto this value</param>           
-        /// <param name="order">Order by an any element (optional)</param>
+        /// <param name="ToDate">DateTime - CreditNotes dated opto this value</param>                   
         /// <returns>List of CreditNotes</returns>
-        public List<CreditNote> CreditNotes(CreditNote.StatusEnum Status, DateTime? FromDate = null, DateTime? ToDate = null, string order = null)
+        public List<CreditNote> CreditNotes(CreditNote.StatusEnum Status, DateTime? FromDate = null, DateTime? ToDate = null)
         {
             // Build the where from List collections
             string where = Common.BuildFilterString("Status", Status);
@@ -1141,7 +1213,7 @@ namespace XeroAuth2API.Api
                 where += " && " + $"Date <= DateTime ({ToDate.Value.Year},{ToDate.Value.Month},{ToDate.Value.Day}) ";
             }
 
-            return CreditNotes(where, order);
+            return CreditNotes(where);
         }
         /// <summary>
         /// Return a single Credit Note
@@ -1167,6 +1239,18 @@ namespace XeroAuth2API.Api
             catch (Exception ex)
             {
                 var er = ex.InnerException as Xero.NetStandard.OAuth2.Client.ApiException;
+                if (er.ErrorCode == 404)
+                {
+                    // Not Found
+                    if (!RaiseNotFoundErrors.HasValue || RaiseNotFoundErrors.Value == true)
+                    {
+                        throw new Xero.NetStandard.OAuth2.Client.ApiException(er.ErrorCode, er.Message, er.ErrorContent);
+                    }
+                    else
+                    {
+                        return null;
+                    }
+                }
                 throw new Xero.NetStandard.OAuth2.Client.ApiException(er.ErrorCode, er.Message, er.ErrorContent);
             }
 
@@ -1313,7 +1397,7 @@ namespace XeroAuth2API.Api
         #region Invoices
 
         /// <summary>
-        /// Get a list of Invoices. 
+        /// Get a list of Invoices. - sync version of the NetStandard call
         /// </summary>
         /// <param name="filter">Filter to limit the number of records returned</param>
         /// <param name="order">Order by an any element (optional)</param>
@@ -1370,10 +1454,9 @@ namespace XeroAuth2API.Api
         /// </summary>
         /// <param name="Status">List of StatusEnum Enum - Xero.NetStandard.OAuth2.Model.Accounting.Invoice.StatusEnum </param>        
         /// <param name="FromDate">DateTime - Invoices dated from this value</param>   
-        /// <param name="ToDate">DateTime - Invoices dated opto this value</param>           
-        /// <param name="order">Order by an any element (optional)</param>
+        /// <param name="ToDate">DateTime - Invoices dated opto this value</param>                   
         /// <returns>List of Invoices</returns>
-        public List<Invoice> Invoices(List<Invoice.StatusEnum> Status, DateTime? FromDate = null, DateTime? ToDate = null, string order = null)
+        public List<Invoice> Invoices(List<Invoice.StatusEnum> Status, DateTime? FromDate = null, DateTime? ToDate = null)
         {
             // Build the where from List collections
             string where = Common.BuildFilterString("Status", Status);
@@ -1390,17 +1473,16 @@ namespace XeroAuth2API.Api
                 where += " && " + $"Date <= DateTime ({ToDate.Value.Year},{ToDate.Value.Month},{ToDate.Value.Day}) ";
             }
 
-            return Invoices(where, order);
+            return Invoices(where);
         }
         /// <summary>
         /// Return a list of Invoices using enums
         /// </summary>
         /// <param name="Status">StatusEnum Enum - Xero.NetStandard.OAuth2.Model.Accounting.Invoice.StatusEnum </param>        
         /// <param name="FromDate">DateTime - Invoices dated from this value</param>   
-        /// <param name="ToDate">DateTime - Invoices dated opto this value</param>           
-        /// <param name="order">Order by an any element (optional)</param>
+        /// <param name="ToDate">DateTime - Invoices dated opto this value</param>                   
         /// <returns>List of Invoices</returns>
-        public List<Invoice> Invoices(Invoice.StatusEnum Status, DateTime? FromDate = null, DateTime? ToDate = null, string order = null)
+        public List<Invoice> Invoices(Invoice.StatusEnum Status, DateTime? FromDate = null, DateTime? ToDate = null)
         {
             // Build the where from List collections
             string where = Common.BuildFilterString("Status", Status);
@@ -1417,7 +1499,7 @@ namespace XeroAuth2API.Api
                 where += " && " + $"Date <= DateTime ({ToDate.Value.Year},{ToDate.Value.Month},{ToDate.Value.Day}) ";
             }
 
-            return Invoices(where, order);
+            return Invoices(where);
         }
         /// <summary>
         /// Return a single Invoice Record 
@@ -1443,6 +1525,18 @@ namespace XeroAuth2API.Api
             catch (Exception ex)
             {
                 var er = ex.InnerException as Xero.NetStandard.OAuth2.Client.ApiException;
+                if (er.ErrorCode == 404)
+                {
+                    // Not Found
+                    if (!RaiseNotFoundErrors.HasValue || RaiseNotFoundErrors.Value == true)
+                    {
+                        throw new Xero.NetStandard.OAuth2.Client.ApiException(er.ErrorCode, er.Message, er.ErrorContent);
+                    }
+                    else
+                    {
+                        return null;
+                    }
+                }
                 throw new Xero.NetStandard.OAuth2.Client.ApiException(er.ErrorCode, er.Message, er.ErrorContent);
             }
 
@@ -1606,6 +1700,18 @@ namespace XeroAuth2API.Api
             catch (Exception ex)
             {
                 var er = ex.InnerException as Xero.NetStandard.OAuth2.Client.ApiException;
+                if (er.ErrorCode == 404)
+                {
+                    // Not Found
+                    if (!RaiseNotFoundErrors.HasValue || RaiseNotFoundErrors.Value == true)
+                    {
+                        throw new Xero.NetStandard.OAuth2.Client.ApiException(er.ErrorCode, er.Message, er.ErrorContent);
+                    }
+                    else
+                    {
+                        return null;
+                    }
+                }
                 throw new Xero.NetStandard.OAuth2.Client.ApiException(er.ErrorCode, er.Message, er.ErrorContent);
             }
 
@@ -1810,7 +1916,7 @@ namespace XeroAuth2API.Api
 
         #region Quotes
         /// <summary>
-        /// Retrieve a list of Quotes
+        /// Retrieve a list of Quotes - sync version of the NetStandard call
         /// </summary>
         /// <param name="order">Order by an any element (optional)</param>
         /// <param name="onlypage">Up to 100 records will be returned in a single API call with line items details (optional)</param>
@@ -1881,12 +1987,24 @@ namespace XeroAuth2API.Api
             catch (Exception ex)
             {
                 var er = ex.InnerException as Xero.NetStandard.OAuth2.Client.ApiException;
+                if (er.ErrorCode == 404)
+                {
+                    // Not Found
+                    if (!RaiseNotFoundErrors.HasValue || RaiseNotFoundErrors.Value == true)
+                    {
+                        throw new Xero.NetStandard.OAuth2.Client.ApiException(er.ErrorCode, er.Message, er.ErrorContent);
+                    }
+                    else
+                    {
+                        return null;
+                    }
+                }
                 throw new Xero.NetStandard.OAuth2.Client.ApiException(er.ErrorCode, er.Message, er.ErrorContent);
             }
 
             return null;
         }
-        public Quote CreateQuote(Quote record, int? unitdp = null)
+        public Quote CreateQuote(Quote record)
         {
             if (record == null)
             {
@@ -1922,7 +2040,7 @@ namespace XeroAuth2API.Api
 
         #region Tax Rates
         /// <summary>
-        /// Return a list of Tax Types
+        /// Return a list of Tax Types - sync version of the NetStandard call
         /// </summary>
         /// <param name="filter">a filter to limit the returned records (leave empty for all records)</param>
         /// <param name="order">Order by an any element (optional)</param>
@@ -2152,6 +2270,18 @@ namespace XeroAuth2API.Api
             catch (Exception ex)
             {
                 var er = ex.InnerException as Xero.NetStandard.OAuth2.Client.ApiException;
+                if (er.ErrorCode == 404)
+                {
+                    // Not Found
+                    if (!RaiseNotFoundErrors.HasValue || RaiseNotFoundErrors.Value == true)
+                    {
+                        throw new Xero.NetStandard.OAuth2.Client.ApiException(er.ErrorCode, er.Message, er.ErrorContent);
+                    }
+                    else
+                    {
+                        return null;
+                    }
+                }
                 throw new Xero.NetStandard.OAuth2.Client.ApiException(er.ErrorCode, er.Message, er.ErrorContent);
             }
 
@@ -2264,6 +2394,18 @@ namespace XeroAuth2API.Api
             catch (Exception ex)
             {
                 var er = ex.InnerException as Xero.NetStandard.OAuth2.Client.ApiException;
+                if (er.ErrorCode == 404)
+                {
+                    // Not Found
+                    if (!RaiseNotFoundErrors.HasValue || RaiseNotFoundErrors.Value == true)
+                    {
+                        throw new Xero.NetStandard.OAuth2.Client.ApiException(er.ErrorCode, er.Message, er.ErrorContent);
+                    }
+                    else
+                    {
+                        return null;
+                    }
+                }
                 throw new Xero.NetStandard.OAuth2.Client.ApiException(er.ErrorCode, er.Message, er.ErrorContent);
             }
 
