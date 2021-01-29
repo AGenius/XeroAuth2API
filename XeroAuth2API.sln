@@ -5,8 +5,6 @@ VisualStudioVersion = 16.0.30804.86
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "XeroAuth2API", "XeroAuth2API.csproj", "{BE4708BF-5084-4AB5-85AF-E7792CDF78A3}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "XeroAPI2Tests", "XeroAPI2.Tests\XeroAPI2Tests.csproj", "{FD4A77CB-7FF6-4C22-B222-D7B19F4DC8F2}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
