@@ -19,7 +19,7 @@ namespace XeroAuth2API
         {
             get
             {
-                return "1.2021.0208,Xero-Standard: 3.14.2";
+                return "1.2021.0212,Xero-Standard: 3.14.2";
             }
         }
         oAuth2 _authClient = null;
