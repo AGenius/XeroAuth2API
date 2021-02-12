@@ -1,9 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
-using System.Threading.Tasks;
+using System.Linq;
+using Newtonsoft.Json;
+using System.IO;
 
 namespace XeroAuth2API.Model
 {
@@ -12,6 +13,77 @@ namespace XeroAuth2API.Model
     /// </summary>
     public class XeroConfiguration
     {
+        /// <summary>
+        /// default ctor
+        /// </summary>
+        public XeroConfiguration() { }
+        /// <summary>
+        /// Provide ability to create the config from a loaded Json string
+        /// </summary>
+        /// <param name="jsonStringOrFilePath">The string containing the Configuration record or a valid file path to a saved Configuration </param>
+        /// <returns>XeroConfiguration object <see cref="XeroConfiguration"/></returns>        
+        public XeroConfiguration(string jsonStringOrFilePath)
+        {
+            try
+            {
+                if (System.IO.File.Exists(jsonStringOrFilePath))
+                {
+                    // Thi parameter passed is a valid file so load it and Deserialize
+                    string content = Common.ReadTextFile(jsonStringOrFilePath);
+                    XeroConfiguration newConfig = Common.DeSerializeObject<XeroConfiguration>(content);
+                    Clone(newConfig);
+                }
+                else
+                {
+                    XeroConfiguration newConfig = Common.DeSerializeObject<XeroConfiguration>(jsonStringOrFilePath);
+                    Clone(newConfig);
+                }
+            }
+            catch (Exception)
+            {
+                throw;
+            }
+        }
+        /// <summary>
+        /// Serialize the Config to a json string
+        /// </summary>
+        /// <returns></returns>
+        public string ToJson()
+        {
+            return Common.SerializeObject(this);
+        }
+        /// <summary>
+        /// Save the Config to a file as a json string
+        /// </summary>
+        public string SaveToFile(string filePath, bool CreateFolders = false)
+        {
+            try
+            {
+                string content = Common.SerializeObject(this);
+                string path = Path.GetPathRoot(filePath);
+
+                if (!string.IsNullOrEmpty(path))
+                {
+                    if (!Directory.Exists(path))
+                    {
+                        if (CreateFolders)
+                        {
+                            Directory.CreateDirectory(path);
+                        }
+                        else
+                        {
+                            return null;
+                        }
+                    }                   
+                }
+
+                return Common.WriteTextFile(filePath, content);
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+        }
         /// <summary>
         /// Holds the Returned Access Code from the Authentication step that the AccessToken exchange needs
         /// </summary>
@@ -22,9 +94,13 @@ namespace XeroAuth2API.Model
         /// </summary>
         public string ReturnedState { get; set; }
         /// <summary>
-        /// Holds the Live AccessToken
+        /// Holds the Live AccessToken returned from the Auth process
         /// </summary>
-        public XeroAccessToken XeroAPIToken { get; set; }
+        [JsonProperty]
+        public XeroTokenSet AccessTokenSet { get; internal set; }
+        /// <summary>
+        /// The random generated code verification hash
+        /// </summary>
         public string codeVerifier { get; set; }
         /// <summary>
         /// Issued when you create your Zero app
@@ -75,7 +151,8 @@ namespace XeroAuth2API.Model
         /// <summary>
         /// Add a scope to the required scopes when authenticating
         /// </summary>
-        /// <param name="scope"></param>
+        /// <param name="scope">The Scope to add <see cref="XeroScope"/></param>
+        /// <param name="reset">Force a reset of the Scopes List</param>
         public void AddScope(XeroScope scope, bool reset = false)
         {
             if (reset)
@@ -161,24 +238,27 @@ namespace XeroAuth2API.Model
                 }
 
                 string scopelist = string.Empty;
-                foreach (var item in Scopes)
+                // Always sort the list of scopes in Alphabetical order to ensure match when testing for changes
+                foreach (var item in Scopes.OrderBy(x => x.ToString()))
                 {
-                    if (!string.IsNullOrEmpty(scopelist) && item != XeroScope.offline_access)
+                    // Must be a named Enum (fixes any added enums that where then removed (bankfeeds test)
+                    if (!int.TryParse(item.ToString(), out int num))
                     {
-                        scopelist += " ";
+                        if (!string.IsNullOrEmpty(scopelist))
+                        {
+                            scopelist += " ";
+                        }
+                        if (item == XeroScope.offline_access)
+                        {
+                            scopelist += item.ToString();
+                        }
+                        else
+                        {
+                            scopelist += item.ToString().Replace("_", ".");
+                        }
                     }
-                    if (item == XeroScope.offline_access)
-                    {
-                        // Dont add now                        
-                    }
-                    else
-                    {
-                        scopelist += item.ToString().Replace("_", ".");
-                    }
-
                 }
-                // To ensure offline_access is at the end of the scope list
-                scopelist += " offline_access";
+
                 return scopelist;
             }
 
@@ -262,6 +342,61 @@ namespace XeroAuth2API.Model
         /// Useful for single tenant connections
         /// </summary>
         public bool? AutoSelectTenant { get; set; }
+        private string _AccessGrantedHTML { get; set; }
+        /// <summary>
+        /// Override the default Access Granted message
+        /// </summary>
+        public string AccessGrantedHTML
+        {
+            get
+            {
+                if (_AccessGrantedHTML == null)
+                {
+                    _AccessGrantedHTML = XeroConstants.XERO_AUTH_ACCESS_GRANTED_HTML;
+                }
+                return _AccessGrantedHTML;
+            }
+            set
+            {
+                _AccessGrantedHTML = value;
+            }
+        }
+        private string _AccessDeniedHTML { get; set; }
+        /// <summary>
+        /// Override the default Access Denied message
+        /// </summary>
+        public string AccessDeniedHTML
+        {
+            get
+            {
+                if (_AccessDeniedHTML == null)
+                {
+                    _AccessDeniedHTML = XeroConstants.XERO_AUTH_ACCESS_DENIED_HTML;
+                }
+                return _AccessDeniedHTML;
+            }
+            set
+            {
+                _AccessDeniedHTML = value;
+            }
+        }
 
+        void Clone(XeroConfiguration configObj)
+        {
+            this.AccessDeniedHTML = configObj.AccessDeniedHTML;
+            this.AccessGrantedHTML = configObj.AccessGrantedHTML;
+            this.AccessTokenSet = configObj.AccessTokenSet;
+            this.AutoSelectTenant = configObj.AutoSelectTenant;
+            this.CallbackUri = configObj.CallbackUri;
+            this.ClientID = configObj.ClientID;
+            this.codeVerifier = configObj.codeVerifier;
+            this.ReturnedAccessCode = configObj.ReturnedAccessCode;
+            this.ReturnedState = configObj.ReturnedState;
+            this.Scopes = configObj.Scopes;
+            this.SelectedTenant = configObj.SelectedTenant;
+            this.State = configObj.State;
+            this.StoreReceivedScope = configObj.StoreReceivedScope;
+
+        }
     }
 }

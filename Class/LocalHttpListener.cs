@@ -2,14 +2,15 @@
 using System.Net;
 using System.Text;
 using System.Text.RegularExpressions;
-using System.Threading.Tasks;
 using Newtonsoft.Json;
+using XeroAuth2API.Model;
 
-/// <summary>
-/// thanks for code found at http://www.gabescode.com/dotnet/2018/11/01/basic-HttpListener-web-service.html 
-/// </summary>
+
 namespace XeroAuth2API
 {
+    /// <summary>
+    /// thanks for code found at http://www.gabescode.com/dotnet/2018/11/01/basic-HttpListener-web-service.html 
+    /// </summary>
     class LocalHttpListener
     {
         public Uri callBackUri { get; set; } // The Call Back Uri - the port and path will be extracted 
@@ -19,7 +20,7 @@ namespace XeroAuth2API
         private bool _keepGoing = true; //A flag to specify when we need to stop
 
         private System.Threading.Tasks.Task _mainLoop; //Keep the task in a variable to keep it alive
-        public Model.XeroConfiguration config { get; set; } // Hold the configuration object 
+        public XeroConfiguration config { get; set; } // Hold the configuration object 
         
         #region Event
         public class LocalHttpListenerEventArgs : EventArgs
@@ -101,8 +102,7 @@ namespace XeroAuth2API
         }
         /// <summary>
         /// Handle an incoming request
-        /// </summary>
-        /// <param name="returnCode">The Object to hold the returned code</param>
+        /// </summary>        
         /// <param name="context">The context of the incoming request</param>
         private void ProcessRequest(HttpListenerContext context)
         {
@@ -139,8 +139,7 @@ namespace XeroAuth2API
         /// <summary>
         /// Handle the returned date and extract the code
         /// </summary>
-        /// <param name="context"></param>
-        /// <param name="returnCode">Object holding the returned access code</param>
+        /// <param name="context"></param>        
         /// <param name="response"></param>
         /// <returns>true/false</returns>
         private bool HandleCallbackRequest(HttpListenerContext context, HttpListenerResponse response)
@@ -155,7 +154,7 @@ namespace XeroAuth2API
             // Deal with access denied/cancel
             if (query.Contains("error"))
             {
-                var buffer = Encoding.UTF8.GetBytes(XeroConstants.XERO_AUTH_ACCESS_DENIED_HTML);
+                var buffer = Encoding.UTF8.GetBytes(config.AccessDeniedHTML);
                 response.ContentLength64 = buffer.Length;
                 response.OutputStream.Write(buffer, 0, buffer.Length);
                 // Raise the event so the oAuth2 class can process the receipt of the 
@@ -191,7 +190,7 @@ namespace XeroAuth2API
                     }
                 }
 
-                var buffer = Encoding.UTF8.GetBytes(XeroConstants.XERO_AUTH_ACCESS_GRANTED_HTML);
+                var buffer = Encoding.UTF8.GetBytes(config.AccessGrantedHTML);
                 response.ContentLength64 = buffer.Length;
                 response.OutputStream.Write(buffer, 0, buffer.Length);
                 // Raise the event so the oAuth2 class can process the receipt of the 

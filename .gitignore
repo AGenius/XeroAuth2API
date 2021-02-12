@@ -339,3 +339,5 @@ ASALocalRun/
 # BeatPulse healthcheck temp database
 healthchecksdb
 /XeroAPI2.Tests/.cr/personal/FavoritesList/List.xml
+/XeroAPI2.Tests/TestApp/XeroClientID.txt
+/XeroAPI2.Tests/TestApp/tokendata.txt

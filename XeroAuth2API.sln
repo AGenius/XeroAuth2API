@@ -5,6 +5,8 @@ VisualStudioVersion = 16.0.30804.86
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "XeroAuth2API", "XeroAuth2API.csproj", "{BE4708BF-5084-4AB5-85AF-E7792CDF78A3}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TestApp", "XeroAPI2.Tests\TestApp\TestApp.csproj", "{C7BCB29C-C4CC-424E-B9D2-1F8E519F5239}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -15,10 +17,10 @@ Global
 		{BE4708BF-5084-4AB5-85AF-E7792CDF78A3}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{BE4708BF-5084-4AB5-85AF-E7792CDF78A3}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{BE4708BF-5084-4AB5-85AF-E7792CDF78A3}.Release|Any CPU.Build.0 = Release|Any CPU
-		{FD4A77CB-7FF6-4C22-B222-D7B19F4DC8F2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{FD4A77CB-7FF6-4C22-B222-D7B19F4DC8F2}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{FD4A77CB-7FF6-4C22-B222-D7B19F4DC8F2}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{FD4A77CB-7FF6-4C22-B222-D7B19F4DC8F2}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C7BCB29C-C4CC-424E-B9D2-1F8E519F5239}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C7BCB29C-C4CC-424E-B9D2-1F8E519F5239}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C7BCB29C-C4CC-424E-B9D2-1F8E519F5239}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C7BCB29C-C4CC-424E-B9D2-1F8E519F5239}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Security.Cryptography;
 using System.Threading.Tasks;
 using XeroAuth2API.Model;
+using System.Linq;
 
 namespace XeroAuth2API
 {
@@ -11,15 +12,21 @@ namespace XeroAuth2API
     /// </summary>
     public class API
     {
+        /// <summary>
+        /// The API Wrapper version
+        /// </summary>
         public string Version
         {
             get
             {
-                return "This API Version : 1.2021.1202 - Compatible with Xero-Standard API : 3.13.0";
+                return "1.2021.0208,Xero-Standard: 3.14.2";
             }
         }
         oAuth2 _authClient = null;
 
+        /// <summary>
+        /// The Configuration object that holds all the magic info needed!
+        /// </summary>
         public XeroConfiguration XeroConfig { get; set; }
         /// <summary>
         /// When the API is initialized and the Token is refreshed or the API is authenticated 
@@ -48,9 +55,9 @@ namespace XeroAuth2API
         {
             get
             {
-                if (XeroConfig != null && XeroConfig.XeroAPIToken != null)
+                if (XeroConfig != null && XeroConfig.AccessTokenSet != null)
                 {
-                    return XeroConfig.XeroAPIToken.Tenants;
+                    return XeroConfig.AccessTokenSet.Tenants;
                 }
                 return null;
             }
@@ -74,42 +81,73 @@ namespace XeroAuth2API
 
 
         // Setup the sub API objects
-        public Api.AccountingApi AccountingApi = new Api.AccountingApi();
-        public Api.AssetApi AssetApi = new Api.AssetApi();
-        public Api.ProjectApi ProjectApi = new Api.ProjectApi();
+        /// <summary>Exposes the AccountingApi Object</summary>
+        public Api.AccountingApi AccountingApi;
+        /// <summary>Exposes the AssetApi Object</summary>
+        public Api.AssetApi AssetApi;
+        /// <summary>Exposes the BankFeedsApi Object</summary>
+        public Api.BankFeedsApi BankFeedsApi;
+        /// <summary>Exposes the PayrollAuApi Object</summary>
+        public Api.PayrollAuApi PayrollAuApi;
+        /// <summary>Exposes the PayrollNzApi Object</summary>
+        public Api.PayrollNzApi PayrollNzApi;
+        /// <summary>Exposes the PayrollUkApi Object</summary>
+        public Api.PayrollUkApi PayrollUkApi;
+        /// <summary>Exposes the IdentityApi Object</summary>
+        public Api.IdentityApi IdentityApi;
+        /// <summary>Exposes the ProjectApi Object</summary>
+        public Api.ProjectApi ProjectApi;
 
 
         #region Event
-
+        /// <summary>
+        /// Loggin message Event
+        /// </summary>
         public class LogMessage
         {
+            /// <summary>
+            /// The message
+            /// </summary>
             public string MessageText { get; set; }
+            /// <summary>
+            /// The status
+            /// </summary>            
             public XeroEventStatus Status { get; set; }
         }
+        /// <summary></summary>
         public event EventHandler<StatusEventArgs> StatusUpdates;
+        /// <summary></summary>
         public class StatusEventArgs : EventArgs
         {
             public string MessageText { get; set; }
             public XeroEventStatus Status { get; set; }
         }
-        public void onStatusUpdates(string message, XeroEventStatus status)
+        /// <summary>Fire the Status update Event</summary>
+        internal void onStatusUpdates(string message, XeroEventStatus status)
         {
             StatusEventArgs args = new StatusEventArgs() { MessageText = message, Status = status };
             StatusUpdates.SafeInvoke(this, args);
         }
 
         #endregion
+        /// <summary>Default constructor, will setup the defaults required.</summary>
         public API()
         {
             _authClient = new oAuth2();
             _authClient.ParentAPI = this;
-            // Setup the reference to the core wrapper
-            AccountingApi.APICore = this;
-            AssetApi.APICore = this;
-            ProjectApi.APICore = this;
+            //
+            AccountingApi = new Api.AccountingApi(this);
+            AssetApi = new Api.AssetApi(this);
+            BankFeedsApi = new Api.BankFeedsApi(this);
+            PayrollAuApi = new Api.PayrollAuApi(this);
+            PayrollNzApi = new Api.PayrollNzApi(this);
+            PayrollUkApi = new Api.PayrollUkApi(this);
+            IdentityApi = new Api.IdentityApi(this);
+            ProjectApi = new Api.ProjectApi(this);
             isConnected = false;
-
         }
+        /// <summary>Instantiate the API with a Configuration record already setup</summary>
+        /// <param name="config">The configuration record to use <see cref="XeroConfiguration"/></param>
         public API(XeroConfiguration config = null)
         {
             if (config == null)
@@ -132,11 +170,15 @@ namespace XeroAuth2API
             _authClient.ParentAPI = this;
             _authClient.XeroConfig = XeroConfig;
             // Setup the reference to the core wrapper
-            AccountingApi.APICore = this;
-            AssetApi.APICore = this;
-            ProjectApi.APICore = this;
+            AccountingApi = new Api.AccountingApi(this);
+            AssetApi = new Api.AssetApi(this);
+            BankFeedsApi = new Api.BankFeedsApi(this);
+            PayrollAuApi = new Api.PayrollAuApi(this);
+            PayrollNzApi = new Api.PayrollNzApi(this);
+            PayrollUkApi = new Api.PayrollUkApi(this);
+            IdentityApi = new Api.IdentityApi(this);
+            ProjectApi = new Api.ProjectApi(this);
             isConnected = false;
-
         }
         /// <summary>
         /// Setup the API and refresh token or re-authorise if needed/requested
@@ -156,6 +198,13 @@ namespace XeroAuth2API
             {
                 throw new ArgumentNullException("Missing XeroConfig");
             }
+
+            // Always ensure the stored Returned scope string is in sorted order 
+            if (XeroConfig.AccessTokenSet != null && !string.IsNullOrEmpty(XeroConfig.AccessTokenSet.RequestedScopes))
+            {
+                XeroConfig.AccessTokenSet.RequestedScopes = string.Join(" ", XeroConfig.AccessTokenSet.RequestedScopes.Split(' ').OrderBy(x => x).ToArray());
+            }
+
             _authClient.XeroConfig = XeroConfig; // Always ensure the auth client has the XeroConfig             
             try
             {
@@ -172,7 +221,7 @@ namespace XeroAuth2API
                 {
                     if ((XeroConfig.AutoSelectTenant.HasValue && XeroConfig.AutoSelectTenant.Value == true) || !XeroConfig.AutoSelectTenant.HasValue)
                     {
-                        XeroConfig.SelectedTenant = XeroConfig.XeroAPIToken.Tenants[0];
+                        XeroConfig.SelectedTenant = XeroConfig.AccessTokenSet.Tenants[0];
                     }
                 }
                 onStatusUpdates("Ready", XeroEventStatus.Success);
@@ -192,6 +241,9 @@ namespace XeroAuth2API
                 throw;
             }
         }
+        /// <summary>
+        /// Revoke the Access Token to invalidate the token used 
+        /// </summary>
         public void RevokeAuth()
         {
             _authClient.RevokeToken();

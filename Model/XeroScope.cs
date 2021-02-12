@@ -1,10 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace XeroAuth2API
+﻿
+namespace XeroAuth2API.Model
 {
     /// <summary>
     /// The Available scopes for API Access

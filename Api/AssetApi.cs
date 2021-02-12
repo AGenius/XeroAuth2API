@@ -8,11 +8,33 @@ namespace XeroAuth2API.Api
     /// <summary>
     /// Collection of wrapper functions to interact with the Asset API endpoints
     /// </summary>
-    public class AssetApi
+    public class AssetApi : Xero.NetStandard.OAuth2.Api.AssetApi, ICoreAPI
     {
-        Xero.NetStandard.OAuth2.Api.AssetApi APIClient = new Xero.NetStandard.OAuth2.Api.AssetApi();
+        Xero.NetStandard.OAuth2.Api.AssetApi APIClient;
         internal API APICore { get; set; }
-
+ 
+        /// <summary>
+        /// Throw errors for Items not found
+        /// </summary>
+        public bool? RaiseNotFoundErrors { get; set; }
+        /// <summary>
+        /// Default 'ctor
+        /// </summary>
+        public AssetApi()
+        {          
+            APIClient = new Xero.NetStandard.OAuth2.Api.AssetApi();
+        }
+        /// <summary>
+        /// 'ctor - pass Parent API class
+        /// </summary>
+        /// <param name="parentAPI">ref to the parent API object</param>
+        public AssetApi(API parentAPI)
+        {
+            this.APICore = parentAPI;
+            Xero.NetStandard.OAuth2.Client.Configuration confg = new Xero.NetStandard.OAuth2.Client.Configuration();
+            confg.UserAgent = "Xero.Net.Api-" + APICore.Version;
+            APIClient = new Xero.NetStandard.OAuth2.Api.AssetApi(confg);
+        }
         #region Assets
         /// <summary>
         /// Return a list of fixed assets
@@ -39,10 +61,16 @@ namespace XeroAuth2API.Api
                 while (count == pageSize)
                 {
                     if (page == -1) page = null; // This allows a quick first page of records
-                    var task = Task.Run(() => APIClient.GetAssetsAsync(APICore.XeroConfig.XeroAPIToken.AccessToken, APICore.XeroConfig.SelectedTenantID, status, page, pageSize, orderBy, sortDirection, filterBy));
-                    task.Wait();
-                    records.AddRange(task.Result.Items); // Add the next page records returned
-                    count = task.Result.Items.Count; // Record the number of records returned in this page. if less than 100 then the loop will exit otherwise get the next page full
+                    var results = Task.Run(() => APIClient.GetAssetsAsync(APICore.XeroConfig.AccessTokenSet.AccessToken, APICore.XeroConfig.SelectedTenantID, status, page, pageSize, orderBy, sortDirection, filterBy)).ConfigureAwait(false).GetAwaiter().GetResult(); ;
+                    if (results != null && results.Items != null && results.Items.Count > 0)
+                    {
+                        records.AddRange(results.Items); // Add the next page records returned
+                        count = results.Items.Count; // Record the number of records returned in this page. if less than 100 then the loop will exit otherwise get the next page full
+                    }
+                    else
+                    {
+                        count = 0;
+                    }
                     if (page != null) page++;
                     if (onlypage.HasValue) count = -1;
                 }
@@ -64,11 +92,11 @@ namespace XeroAuth2API.Api
         {
             try
             {
-                var task = Task.Run(() => APIClient.GetAssetTypesAsync(APICore.XeroConfig.XeroAPIToken.AccessToken, APICore.XeroConfig.SelectedTenantID));
-                task.Wait();
-                if (task.Result.Count > 0)
+                var results = Task.Run(() => APIClient.GetAssetTypesAsync(APICore.XeroConfig.AccessTokenSet.AccessToken, APICore.XeroConfig.SelectedTenantID)).ConfigureAwait(false).GetAwaiter().GetResult(); ;
+
+                if (results.Count > 0)
                 {
-                    return task.Result;
+                    return results;
                 }
             }
             catch (Exception ex)
